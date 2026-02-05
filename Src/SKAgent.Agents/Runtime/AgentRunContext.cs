@@ -14,7 +14,7 @@ namespace SKAgent.Agents.Runtime
         /// <summary>
         /// 关键: 与Router/Agents 统一的上下文 同一个State会贯穿整个Run
         /// </summary>
-        public AgentContext RootContext { get; set; }
+        public AgentContext Root { get; set; }
 
         //目标 来自Planner
         public string Goal { get; init; } = string.Empty;
@@ -23,15 +23,16 @@ namespace SKAgent.Agents.Runtime
 
 
         public IList<PlanStepExecution> Steps { get; } = new List<PlanStepExecution>();
-        ////最终结构 唯一可信
-        //public PlanExecutionResult? FinalResult { get; set; }
+        ////最终聚合输出
+        public string? FinalOutput { get; set; }
 
         public AgentRunStatus Status { get; set; } = AgentRunStatus.Initialized;
 
 
+
         public AgentRunContext(AgentContext context, string goal, AgentPlan plan)
         {
-            RootContext = context ?? throw new ArgumentNullException(nameof(context));
+            Root = context ?? throw new ArgumentNullException(nameof(context));
             Goal = goal ?? string.Empty;
             Plan = plan ?? throw new ArgumentNullException(nameof(plan));
 

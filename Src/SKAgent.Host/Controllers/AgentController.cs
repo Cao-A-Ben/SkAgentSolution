@@ -2,6 +2,7 @@
 using SKAgent.Agents;
 using SKAgent.Agents.Execution;
 using SKAgent.Agents.Planning;
+using SKAgent.Agents.Runtime;
 using SKAgent.Core.Agent;
 
 namespace SKAgent.Host.Controllers
@@ -26,10 +27,32 @@ namespace SKAgent.Host.Controllers
             // 1. 生成Plan
             var plan = await _planner.CreatPlanAsync(input);
 
-            var executionResult = await _executor.ExecuteAsync(plan);
+            var agentContext = new AgentContext
+            {
+                Input = input,
+                // 可选: 传递预期输出给Planner
+                ExpectedOutput = string.Empty,
+                CancellationToken = HttpContext.RequestAborted
+            };
 
+            var run = new AgentRunContext(agentContext, plan.Goal, plan!);
+            // 2. 执行Plan
+            await _executor.ExecuteAsync(run);
 
-            return Ok(executionResult);
+            return Ok(new
+            {
+                runId = run.RunId,
+                goal = run.Goal,
+                status = run.Status.ToString(),
+                output = run.FinalOutput,
+                steps = run.Steps.Select(s => new {
+                    order = s.Order,
+                    agent = s.Agent,
+                    status = s.Status.ToString(),
+                    output = s.Output,
+                    error = s.Error
+                })
+            });
 
         }
     }

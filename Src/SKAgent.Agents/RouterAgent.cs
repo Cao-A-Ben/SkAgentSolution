@@ -37,9 +37,11 @@ namespace SKAgent.Agents
             if (!_agents.TryGetValue(target, out var agent))
                 throw new InvalidOperationException("Target agent not registered.");
 
+
+            var agentName= agent.Name;
             _logger.LogInformation(
                 "Routing to agent {AgentName}, RequestId={RequestId}",
-                agent.Name, context.RequestId);
+                agentName, context.RequestId);
 
             return await agent.ExecuteAsync(context);
         }
