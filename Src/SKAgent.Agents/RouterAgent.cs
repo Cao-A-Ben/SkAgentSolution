@@ -22,30 +22,30 @@ namespace SKAgent.Agents
 
         public async Task<AgentResult> ExecuteAsync(AgentContext context)
         {
-
-
-            // 简化 从Context.state决定路由
-            if (!context.State.TryGetValue("target", out var target))
+            // 优先使用标准字段
+            var target = context.Target;
+            // ✅ 兼容旧实现（过渡）
+            if (string.IsNullOrWhiteSpace(target) &&
+                context.State.TryGetValue("target", out var legacyTarget))
             {
+                target = legacyTarget?.ToString();
+            }
+
+            if (string.IsNullOrWhiteSpace(target))
                 throw new InvalidOperationException("No target agent.");
-            }
 
-            if (!_agents.TryGetValue(target.ToString()!, out var agent))
-            {
+            if (!_agents.TryGetValue(target, out var agent))
                 throw new InvalidOperationException("Target agent not registered.");
-            }
 
-            var agentName = agent.Name;
             _logger.LogInformation(
                 "Routing to agent {AgentName}, RequestId={RequestId}",
-                agentName,
-                context.RequestId);
+                agent.Name, context.RequestId);
 
             return await agent.ExecuteAsync(context);
         }
 
-        
 
-   
+
+
     }
 }

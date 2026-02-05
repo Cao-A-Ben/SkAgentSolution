@@ -17,14 +17,14 @@ namespace SKAgent.Agents.Execution
         }
 
 
-        public async Task<PlanExecutionResult> ExecuteAsync(AgentRunContext context, CancellationToken ct = default)
+        public async Task ExecuteAsync(AgentRunContext run, CancellationToken ct = default)
         {
-            if (context.Plan == null)
+            if (run.Plan == null)
                 throw new InvalidOperationException("No plan available for execution.");
 
-            context.Status = AgentRunStatus.Executing;
+            run.Status = AgentRunStatus.Executing;
             //按步骤顺序执行
-            var steps = context.Plan.Steps.OrderBy(d => d.Order).ToList();
+            var steps = run.Plan.Steps.OrderBy(d => d.Order).ToList();
 
             foreach (var step in steps)
             {
@@ -32,27 +32,62 @@ namespace SKAgent.Agents.Execution
                 //创建Step执行对象 写入上下文
                 var exec = new PlanStepExecution
                 {
-                    Order = step.Order,
-                    Agent = step.Agent,
-                    Input = step.Instruction,
+                    Step = step,
                     Status = StepExecutionStatus.Running
                 };
-                context.StepExecutions.Add(exec);
+                run.Steps.Add(exec);
 
                 try
                 {
-                    var output=await _router.ExecuteAsync(step.Agent, BuildStepInput(step, GetPreviousOutput(context)), ct);
+                    // 标准协议写入
+                    run.RootContext.Target = step.Agent;
+                    run.RootContext.Input = step.Instruction;
+                    run.RootContext.ExpectedOutput = step.ExpectedOutput;
+
+                    var result = await _router.ExecuteAsync(run.RootContext);
+
+                    exec.Output = result.Output;
+                    exec.Status = result.IsSuccess ? StepExecutionStatus.Success : StepExecutionStatus.Failed;
+                    if (!result.IsSuccess)
+                    {
+                        exec.Error = exec.Error ?? "AgentResult.IsSuccess=false";
+                        run.Status = AgentRunStatus.Failed;
+                    }
+
+                    // 可选: 支持动态路由
+                    if (!string.IsNullOrWhiteSpace(result.NextAgent))
+                    {
+                        run.RootContext.Target = result.NextAgent!;
+                    }
                 }
+                catch (Exception ex)
+                {
+                    exec.Error = ex.Message;
+                    exec.Status = StepExecutionStatus.Failed;
+                    run.Status = AgentRunStatus.Failed;
+
+                    return;
+                }
+
+                run.Status = AgentRunStatus.Completed;
             }
         }
 
-
-        private async Task<string> ExecuteByRouterAsync(PlanStep step,CancellationToken ct)
+        /// <summary>
+        /// 把PlanStep转成Router/Agent能理解的AgentContext输入协议
+        /// </summary>
+        /// <param name="context">The context.</param>
+        /// <param name="step">The step.</param>
+        private static void PrepareContextForStep(AgentContext context, PlanStep step)
         {
+            context.State["target"] = step.Agent;
+            //统一: 把 instruction 也放进 State 供目标 Agent 使用
+            context.State["instruction"] = step.Instruction;
 
-            _router.ExecuteAsync(step.Agent, step.Instruction, ct);
+            //反思/对齐，ExpectedOutput 放进 State
+            if (!string.IsNullOrWhiteSpace(step.ExpectedOutput))
+                context.State["expectedOutput"] = step.ExpectedOutput!;
         }
-
         private static string BuildStepInput(PlanStep step, string previousOutput)
         {
             if (string.IsNullOrWhiteSpace(previousOutput))
