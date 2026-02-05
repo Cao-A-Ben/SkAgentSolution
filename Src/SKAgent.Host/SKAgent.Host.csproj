@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <UserSecretsId>c3cdd208-9206-4d49-b4d8-b9e5ec6d114b</UserSecretsId>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.2" />
+    <PackageReference Include="Scalar.AspNetCore" Version="2.12.32" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../SKAgent.Core/SKAgent.Core.csproj" />
+    <ProjectReference Include="../SKAgent.Agents/SKAgent.Agents.csproj" />
+    <ProjectReference Include="../SKAgent.Infrastructure/SKAgent.Infrastructure.csproj" />
+  </ItemGroup>
+
+</Project>
