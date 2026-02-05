@@ -17,24 +17,41 @@ namespace SKAgent.Agents.Execution
         }
 
 
-        public async Task<PlanExecutionResult> ExecuteAsync(AgentRunContext context)
+        public async Task<PlanExecutionResult> ExecuteAsync(AgentRunContext context, CancellationToken ct = default)
         {
-           if(context.Plan==null)
+            if (context.Plan == null)
                 throw new InvalidOperationException("No plan available for execution.");
 
-           context.Status=AgentRunStatus.Executing;
+            context.Status = AgentRunStatus.Executing;
+            //按步骤顺序执行
+            var steps = context.Plan.Steps.OrderBy(d => d.Order).ToList();
 
-            int stepIndex = 0;
-
-            foreach(var step in context.Plan.Steps)
+            foreach (var step in steps)
             {
-                stepIndex++;
-
+                ct.ThrowIfCancellationRequested();
                 //创建Step执行对象 写入上下文
-             
+                var exec = new PlanStepExecution
+                {
+                    Order = step.Order,
+                    Agent = step.Agent,
+                    Input = step.Instruction,
+                    Status = StepExecutionStatus.Running
+                };
+                context.StepExecutions.Add(exec);
+
+                try
+                {
+                    var output=await _router.ExecuteAsync(step.Agent, BuildStepInput(step, GetPreviousOutput(context)), ct);
+                }
             }
         }
 
+
+        private async Task<string> ExecuteByRouterAsync(PlanStep step,CancellationToken ct)
+        {
+
+            _router.ExecuteAsync(step.Agent, step.Instruction, ct);
+        }
 
         private static string BuildStepInput(PlanStep step, string previousOutput)
         {

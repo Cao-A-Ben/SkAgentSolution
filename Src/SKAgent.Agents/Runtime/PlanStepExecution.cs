@@ -12,5 +12,9 @@ namespace SKAgent.Agents.Runtime
         public string Input { get; set; } = string.Empty;
 
         public string? Output { get; set; }
+
+        public string? Error { get; set; }
+
+        public StepExecutionStatus Status { get; set; } = StepExecutionStatus.Pending;
     }
 }
