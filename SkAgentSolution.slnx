@@ -1,4 +1,7 @@
 <Solution>
+  <Folder Name="/Doc/">
+    <File Path="README.md" />
+  </Folder>
   <Folder Name="/Src/">
     <Project Path="Src/SKAgent.Agents/SKAgent.Agents.csproj" Id="23aa8e5c-c096-4208-9d1d-8631ed77c179" />
     <Project Path="Src/SKAgent.Core/SKAgent.Core.csproj" Id="963841fb-c881-4f67-b1cd-0b59b569936d" />

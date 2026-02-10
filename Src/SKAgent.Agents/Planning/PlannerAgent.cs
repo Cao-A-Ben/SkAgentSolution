@@ -4,6 +4,8 @@ using System.Text;
 using System.Text.Json;
 using Microsoft.SemanticKernel;
 using Microsoft.SemanticKernel.Connectors.OpenAI;
+using SKAgent.Agents.Runtime;
+using SKAgent.Core.Agent;
 using SKAgent.Core.Utilities;
 
 namespace SKAgent.Agents.Planning
@@ -18,7 +20,7 @@ namespace SKAgent.Agents.Planning
             _kernel = kernel;
         }
 
-        public async Task<AgentPlan> CreatPlanAsync(string userInput)
+        public async Task<AgentPlan> CreatPlanAsync(AgentRunContext run)
         {
             var prompt = """
 你是一个 Agent Planner
@@ -56,13 +58,13 @@ namespace SKAgent.Agents.Planning
 
             //var result = await _kernel.InvokePromptAsync<PlannerDecision>(prompt, new KernelArguments { ["input"] = userInput });
 
-
+            var plannerInput = BuildPlannerContext(run);
             OpenAIPromptExecutionSettings settings = new()
             {
                 Temperature = 0,
                 //ResponseFormat = OpenAI.Chat.ChatResponseFormat.CreateTextFormat()
             };
-            var arguments = new KernelArguments { ["input"] = userInput };
+            var arguments = new KernelArguments { ["input"] = plannerInput };
             var result = await _kernel.InvokePromptAsync(prompt, arguments);
 
 
@@ -79,5 +81,29 @@ namespace SKAgent.Agents.Planning
         }
 
 
+        private static string BuildPlannerContext(AgentRunContext run)
+        {
+            //最近turns 只取短摘要，避免prompt膨胀
+            var sb = new StringBuilder();
+
+            if (run.RecentTurns.Count > 0)
+            {
+                sb.AppendLine("[Recent Conversation Memory]");
+                foreach (var t in run.RecentTurns)
+                {
+                    var u = t.UserInput.Replace("\n", " ").Trim();
+                    var a = t.AssistantOutput.Replace("\n", " ").Trim();
+                    if (a.Length > 180) a = a[..180] + "...";
+
+                    sb.AppendLine($"- User: {u}");
+                    sb.AppendLine($"  Assistant: {a}");
+                }
+                sb.AppendLine();
+            }
+            sb.AppendLine("[Current User Input]");
+            sb.AppendLine(run.Root.Input);
+
+            return sb.ToString();
+        }
     }
 }

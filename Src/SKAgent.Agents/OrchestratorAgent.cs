@@ -22,18 +22,20 @@ namespace SKAgent.Agents
         public async Task<AgentResult> ExecuteAsync(string input)
         {
             // 1. 让 LLM 决策
-            var decision = await _planner.CreatPlanAsync(input);
+            //var decision = await _planner.CreatPlanAsync(input);
 
-            // 2. 构建上下文
-            var context = new AgentContext
-            {
-                Input = input,
-                //State = { ["target"] = decision.Agent }
-            };
+            //// 2. 构建上下文
+            //var context = new AgentContext
+            //{
+            //    Input = input,
+            //    //State = { ["target"] = decision.Agent }
+            //};
 
-            // 3. 路由执行
-            var result = await _router.ExecuteAsync(context);
-            return result;
+            //// 3. 路由执行
+            //var result = await _router.ExecuteAsync(context);
+            //return result;
+
+            return default;
 
         }
     }

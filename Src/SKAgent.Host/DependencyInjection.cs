@@ -2,7 +2,9 @@
 using Microsoft.Extensions.DependencyInjection;
 using SKAgent.Agents;
 using SKAgent.Agents.Execution;
+using SKAgent.Agents.Memory;
 using SKAgent.Agents.Planning;
+using SKAgent.Agents.Runtime;
 using SKAgent.Core.Agent;
 using SKAgent.Core.Protocols.MCP;
 using SKAgent.Infrastructure.Mcp;
@@ -30,6 +32,9 @@ namespace SKAgent.Host
             services.AddSingleton<PlannerAgent>();
             //services.AddSingleton<OrchestratorAgent>();
             services.AddSingleton<PlanExecutor>();
+
+            services.AddSingleton<IShortTermMemory>(new InMemoryShortTermMemory(maxPerConversation: 20));
+            services.AddScoped<AgentRuntimeService>();
 
             return services;
         }
