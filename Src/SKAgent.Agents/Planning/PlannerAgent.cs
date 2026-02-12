@@ -11,20 +11,52 @@ using SKAgent.Core.Utilities;
 
 namespace SKAgent.Agents.Planning
 {
+    /// <summary>
+    /// 【Planning 层 - 计划生成 Agent】
+    /// 负责将用户请求通过 LLM 拆解为一组有序的执行步骤（AgentPlan）。
+    /// 是整个 Runtime 流程的"大脑"，决定需要哪些 Agent 以什么顺序完成任务。
+    /// 
+    /// 在运行时流程中的位置：
+    /// AgentRuntimeService.RunAsync → PlannerAgent.CreatPlanAsync → PlanExecutor.ExecuteAsync
+    /// 
+    /// 依赖：
+    /// - Kernel：Semantic Kernel 实例，用于调用 LLM。
+    /// - PersonaOptions：人格配置，PlannerHint 影响计划拆解策略。
+    /// </summary>
     public class PlannerAgent
     {
-
+        /// <summary>Semantic Kernel 实例，用于调用 LLM 生成执行计划。</summary>
         private readonly Kernel _kernel;
 
+        /// <summary>人格配置，提供 PlannerHint 作为计划拆解的额外约束。</summary>
         private readonly PersonaOptions _persona;
+
+        /// <summary>
+        /// 初始化 PlannerAgent。
+        /// </summary>
+        /// <param name="kernel">Semantic Kernel 实例。</param>
+        /// <param name="persona">人格配置选项，提供 PlannerHint。</param>
         public PlannerAgent(Kernel kernel, PersonaOptions persona)
         {
             _kernel = kernel;
             _persona = persona;
         }
 
+        /// <summary>
+        /// 调用 LLM 将用户请求拆解为执行计划（AgentPlan）。
+        /// 
+        /// 流程：
+        /// 1. 构建 Planner 上下文（包含 Profile、RecentTurns、当前输入）。
+        /// 2. 将 PersonaOptions.PlannerHint 注入 prompt 模板的 {{$hint}} 变量。
+        /// 3. 调用 Semantic Kernel InvokePromptAsync 请求 LLM 生成 JSON 格式的计划。
+        /// 4. 使用 LlmOutputParser 从原始输出中提取 JSON。
+        /// 5. 反序列化为 AgentPlan 对象返回。
+        /// </summary>
+        /// <param name="run">当前运行上下文，包含用户输入、Profile、RecentTurns 等信息。</param>
+        /// <returns>LLM 生成的执行计划。</returns>
         public async Task<AgentPlan> CreatPlanAsync(AgentRunContext run)
         {
+            // Planner 的 prompt 模板，指导 LLM 输出 JSON 格式的执行计划
             var prompt = """
 你是一个 Agent Planner
 人格约束[必须遵守]:
@@ -61,26 +93,32 @@ namespace SKAgent.Agents.Planning
 {{$input}}
 """;
 
-            //var result = await _kernel.InvokePromptAsync<PlannerDecision>(prompt, new KernelArguments { ["input"] = userInput });
-
+            // 1. 构建 Planner 输入上下文（Profile + RecentTurns + 当前输入）
             var plannerInput = BuildPlannerContext(run);
+
+            // 2. 配置 LLM 参数：Temperature=0 确保输出稳定可预测
             OpenAIPromptExecutionSettings settings = new()
             {
                 Temperature = 0,
-                //ResponseFormat = OpenAI.Chat.ChatResponseFormat.CreateTextFormat()
             };
+
+            // 3. 将 hint 和 input 注入 prompt 模板变量
             var arguments = new KernelArguments(settings)
             {
                 ["hint"] = _persona.PlannerHint,
                 ["input"] = plannerInput,
             };
+
+            // 4. 调用 Semantic Kernel 执行 prompt，获取 LLM 原始输出
             var result = await _kernel.InvokePromptAsync(prompt, arguments);
 
 
 
+            // 5. 从 LLM 原始输出中提取 JSON 字符串（去除可能的 Markdown 包裹）
             var raw = result.GetValue<string>()!;
             var json = LlmOutputParser.ExtractJson(raw);
 
+            // 6. 反序列化为 AgentPlan 对象（属性名忽略大小写）
             var options = new JsonSerializerOptions
             {
                 PropertyNameCaseInsensitive = true
@@ -90,10 +128,17 @@ namespace SKAgent.Agents.Planning
         }
 
 
+        /// <summary>
+        /// 构建 Planner 的输入上下文字符串，包含 Profile、最近对话记忆和当前用户输入。
+        /// 确保 Planner 能基于足够的上下文生成合理的执行计划。
+        /// </summary>
+        /// <param name="run">当前运行上下文。</param>
+        /// <returns>拼接后的 Planner 输入文本。</returns>
         private static string BuildPlannerContext(AgentRunContext run)
         {
-            //最近turns 只取短摘要，避免prompt膨胀
             var sb = new StringBuilder();
+
+            // 1. 如果有用户画像，拼接 [User Profile] 段
             if (run.ConversationState.TryGetValue("profile", out var p) && p is Dictionary<string, string> profile && profile.Count > 0)
             {
                 sb.AppendLine("[User Profile]");
@@ -101,6 +146,8 @@ namespace SKAgent.Agents.Planning
                     sb.AppendLine($"{kv.Key}={kv.Value}");
                 sb.AppendLine();
             }
+
+            // 2. 如果有最近对话记忆，拼接 [Recent Conversation Memory] 段（摘要形式，避免 prompt 膨胀）
             if (run.RecentTurns.Count > 0)
             {
                 sb.AppendLine("[Recent Conversation Memory]");
@@ -115,6 +162,8 @@ namespace SKAgent.Agents.Planning
                 }
                 sb.AppendLine();
             }
+
+            // 3. 拼接当前用户输入
             sb.AppendLine("[Current User Input]");
             sb.AppendLine(run.UserInput);
 

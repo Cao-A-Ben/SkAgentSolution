@@ -1,0 +1,19 @@
+stateDiagram-v2
+    [*] --> RunCreated
+    RunCreated --> Planning: run_started
+    Planning --> Planned: plan_created
+    Planned --> Executing: step_started
+    Executing --> ToolCalling: tool_invoked
+    ToolCalling --> Executing: tool_completed
+    Executing --> StepDone: step_completed
+    Executing --> StepFailed: step_failed
+    StepFailed --> Reflecting: reflection_triggered
+    Reflecting --> Retrying: retry_scheduled
+    Retrying --> Executing: step_started
+    Reflecting --> Replanned: plan_repaired
+    Replanned --> Executing: step_started
+    StepDone --> Executing: next step
+    StepDone --> Completed: run_completed
+    StepFailed --> Failed: run_failed
+    Completed --> [*]
+    Failed --> [*]

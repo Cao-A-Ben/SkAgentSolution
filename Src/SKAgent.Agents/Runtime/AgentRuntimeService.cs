@@ -10,15 +10,40 @@ using SKAgent.Core.Agent;
 
 namespace SKAgent.Agents.Runtime
 {
+    /// <summary>
+    /// 【Runtime 层 - Agent 运行时服务（总调度器）】
+    /// 整个 Agent 系统的顶层编排服务，串联所有环节：
+    /// 加载上下文 → 规划 → 执行 → 记忆写入 → 画像更新。
+    /// 
+    /// 由 AgentController 直接调用，是 API 请求到 Agent 执行的桥梁。
+    /// 
+    /// 依赖：
+    /// - IShortTermMemory：短期记忆存储（读/写对话回合）。
+    /// - PlannerAgent：LLM 驱动的计划生成器。
+    /// - PlanExecutor：计划执行引擎。
+    /// - IUserProfileStore：用户画像存储（读/写画像字段）。
+    /// - PersonaOptions：人格配置。
+    /// </summary>
     public sealed class AgentRuntimeService
     {
-
+        /// <summary>短期记忆存储接口。</summary>
         private readonly IShortTermMemory _stm;
+
+        /// <summary>计划生成 Agent。</summary>
         private readonly PlannerAgent _planner;
+
+        /// <summary>计划执行器。</summary>
         private readonly PlanExecutor _executor;
+
+        /// <summary>用户画像存储接口。</summary>
         private readonly IUserProfileStore profileStore;
+
+        /// <summary>人格配置选项。</summary>
         private readonly PersonaOptions persona;
 
+        /// <summary>
+        /// 初始化运行时服务，注入所有依赖。
+        /// </summary>
         public AgentRuntimeService(
             IShortTermMemory stm,
             PlannerAgent planner,
@@ -33,8 +58,27 @@ namespace SKAgent.Agents.Runtime
             this.persona = persona;
         }
 
+        /// <summary>
+        /// 执行一次完整的 Agent 运行流程。
+        /// 
+        /// 完整流程：
+        /// 1. 创建 AgentContext（Root）和 AgentRunContext（SSOT）。
+        /// 2. 从 IShortTermMemory 加载最近 N 轮对话记录，写入 ConversationState["recent_turns"]。
+        /// 3. 从 IUserProfileStore 加载用户画像，写入 ConversationState["profile"]。
+        /// 4. 将 PersonaOptions 写入 ConversationState["persona"]。
+        /// 5. 调用 PlannerAgent.CreatPlanAsync 生成执行计划。
+        /// 6. 调用 PlanExecutor.ExecuteAsync 逐步执行计划。
+        /// 7. 调用 CommitShortTermMemoryAsync 将本轮对话写入短期记忆。
+        /// 8. 调用 ProfileExtractor 提取画像字段并通过 UpsertAsync 更新存储。
+        /// 9. 返回完整的 AgentRunContext。
+        /// </summary>
+        /// <param name="conversationId">会话唯一标识 ID。</param>
+        /// <param name="input">用户输入文本。</param>
+        /// <param name="ct">取消令牌。</param>
+        /// <returns>完整的运行上下文，包含输出、步骤、画像快照等。</returns>
         public async Task<AgentRunContext> RunAsync(string conversationId, string input, CancellationToken ct = default)
         {
+            // 1. 创建 Root AgentContext
             var agentContext = new AgentContext
             {
                 Input = input,
@@ -42,55 +86,66 @@ namespace SKAgent.Agents.Runtime
                 CancellationToken = ct
             };
 
+            // 2. 创建 AgentRunContext（SSOT），封装本次运行的所有状态
             var run = new AgentRunContext(agentContext, conversationId);
 
-            // 读取短期记忆 给planner使用
+            // 3. 从短期记忆加载最近 4 轮对话记录，供 Planner 和 ChatAgent 参考上下文
             var recent = await _stm.GetRecentAsync(conversationId, take: 4, ct);
             run.SetRecentTurns(recent);
 
-            // ✅ 让 StepContext/ChatAgent 能拿到 recent_turns
+            // 4. 将 recent_turns 写入 ConversationState，让 StepContext/ChatAgent 能读取
             run.ConversationState["recent_turns"] = recent;
 
-
+            // 5. 从画像存储加载用户画像，写入 ConversationState
             var profile = await profileStore.GetAsync(conversationId, ct);
             run.ConversationState["profile"] = profile;
 
-            // ✅ persona 也放到 state，Planner/Chat 都能用
+            // 6. 将人格配置写入 ConversationState，Planner 和 ChatAgent 都能使用
             run.ConversationState["persona"] = persona;
 
+            // 7. 调用 PlannerAgent 生成执行计划
             var plan = await _planner.CreatPlanAsync(run);
             run.SetPlan(plan);
 
+            // 8. 调用 PlanExecutor 逐步执行计划
             await _executor.ExecuteAsync(run);
 
-            // Executor 里面已经执行了commit。 在这里执行也可以
+            // 9. 将本轮对话记录写入短期记忆
             await CommitShortTermMemoryAsync(run);
 
-            // profile 更新(回合结束后写入)
+            // 10. 使用 ProfileExtractor 从用户输入中提取画像字段
             var patch = ProfileExtractor.ExtractPath(run.UserInput);
             if (patch != null && patch.Count > 0)
             {
+                // 10.1 将提取的字段写入画像存储
                 await profileStore.UpsertAsync(conversationId, patch, ct);
 
-                //同步回run 方便 response_snapshot
+                // 10.2 重新加载完整画像并同步到 ConversationState，供 Response 返回 profileSnapshot
                 var merged = await profileStore.GetAsync(conversationId, ct);
                 run.ConversationState["profile"] = merged;
             }
 
-
             return run;
-
-
         }
 
+        /// <summary>
+        /// 将本轮对话记录写入短期记忆。
+        /// 构建 TurnRecord 包含用户输入、助手输出、目标和步骤明细，
+        /// 通过 IShortTermMemory.AppendAsync 追加到会话记忆中。
+        /// </summary>
+        /// <param name="run">当前运行上下文。</param>
         public async Task CommitShortTermMemoryAsync(AgentRunContext run)
         {
             var conversationId = run.ConversationId;
+
+            // 1. 校验会话 ID
             if (string.IsNullOrWhiteSpace(conversationId)) return;
+
+            // 2. 构建 TurnRecord
             var turnRecord = new TurnRecord
             {
                 At = DateTimeOffset.UtcNow,
-                UserInput = run.UserInput,//用户原始输入
+                UserInput = run.UserInput,
                 AssistantOutput = run.FinalOutput ?? string.Empty,
                 Goal = run.Goal,
                 Steps = run.Steps.Select(s => new StepRecord
@@ -102,6 +157,8 @@ namespace SKAgent.Agents.Runtime
                     Status = s.Status.ToString()
                 }).ToList()
             };
+
+            // 3. 追加到短期记忆
             await _stm.AppendAsync(conversationId, turnRecord, run.Root.CancellationToken);
         }
 

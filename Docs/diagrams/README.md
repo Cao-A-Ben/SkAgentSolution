@@ -1,0 +1,50 @@
+# Diagrams
+
+This folder contains Mermaid sources (`.mmd`).  
+For GitHub rendering, the same diagrams are embedded below.
+
+## Runtime Sequence
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant Client
+    participant API
+    participant Runtime as RuntimeService
+    participant Planner
+    participant Exec as Executor
+    participant Tools as ToolInvoker
+    participant Reflect as Reflection
+
+    Client->>API: POST /api/agent/run (non-stream)
+    API->>Runtime: RunAsync(request, NullSink)
+    Runtime-->>Runtime: emit run_started
+    Runtime->>Planner: CreatePlan(ctx)
+    Planner-->>Runtime: emit plan_created
+    Runtime->>Exec: Execute(plan, ctx)
+
+    loop steps
+        Exec-->>Runtime: emit step_started
+        alt tool_step
+            Exec->>Tools: Invoke(tool, args)
+            Tools-->>Exec: ToolResult
+            Tools-->>Runtime: emit tool_invoked/tool_completed
+        else agent_step
+            Exec-->>Runtime: emit chat_delta (optional)
+        end
+        Exec-->>Runtime: emit step_completed/step_failed
+        opt reflection trigger
+            Exec->>Reflect: Reflect(ctx, step)
+            Reflect-->>Runtime: emit reflection_triggered/retry_scheduled
+        end
+    end
+
+    Runtime-->>Runtime: emit run_completed
+    Runtime-->>API: AgentRunResponse(final)
+    API-->>Client: 200 OK (final JSON)
+
+    Note over Client,API: Stream mode: POST /api/agent/run/stream injects SseSink<br/>and events are flushed as SSE.
+```
+
+
+

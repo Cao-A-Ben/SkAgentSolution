@@ -6,8 +6,13 @@ using SKAgent.Core.Agent;
 
 namespace SKAgent.Agents
 {
-    //废弃 由Plan Executor取代
-    [Obsolete("由Plan Executor取代")]
+    /// <summary>
+    /// 【Agents 层 - 编排 Agent（已废弃）】
+    /// Week2/Week3 早期版本中的编排 Agent，负责协调 Planner 和 Router。
+    /// 在 Week3+ 架构中已被 AgentRuntimeService + PlanExecutor 组合替代。
+    /// 保留仅供参考和向后兼容。
+    /// </summary>
+    [Obsolete("由 AgentRuntimeService + PlanExecutor 取代")]
     public class OrchestratorAgent
     {
         private readonly PlannerAgent _planner;

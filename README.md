@@ -6,6 +6,30 @@
 > 目标不是“对话 Demo”，而是 **可成长、可记忆、可扩展的 Agent 架构**
 
 ---
+## Documentation
+
+- Architecture
+  - [Architecture Overview](docs/architecture.md)
+  - [Runtime Lifecycle & API (Non-stream + SSE)](docs/runtime.md)
+
+- Engineering Specs
+  - [Skills / Tools Protocol](docs/skills.md)
+  - [Observability: Run Event Model (Trace + SSE)](docs/observability.md)
+  - [Reflection: Retry & Plan Repair](docs/reflection.md)
+
+- Weekly Notes
+  - [Week4](docs/weeks/week4.md)
+  - [Week5](docs/weeks/week5.md)
+
+- ADR (Architecture Decision Records)
+  - [ADR-0001 SSOT via RunContext](docs/adr/0001-ssot-runcontext.md)
+  - [ADR-0002 Tool/Skill Protocol](docs/adr/0002-tool-skill-protocol.md)
+  - [ADR-0003 Run Event Model (Trace+SSE)](docs/adr/0003-tracing-schema.md)
+  - [ADR-0004 Reflection & Retry Policy](docs/adr/0004-reflection-retry-policy.md)
+
+- Diagrams (Mermaid)
+  - [Runtime Sequence](docs/diagrams/runtime-sequence.mmd)
+  - [Plan-Execute State Machine](docs/diagrams/plan-exec-state.mmd)
 
 ## 一、项目目的（Why）
 

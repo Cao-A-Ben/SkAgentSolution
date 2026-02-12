@@ -1,7 +1,28 @@
 <Solution>
   <Folder Name="/Docs/">
-    <File Path="Docs/Week4 - 最小陪伴体（Persona + Profile + 会话级 API）.md" />
+    <File Path="Docs/Architecture - 解决方案架构与调用流程.md" />
+    <File Path="Docs/architecture.md" />
+    <File Path="Docs/observability.md" />
+    <File Path="Docs/reflection.md" />
+    <File Path="Docs/runtime.md" />
+    <File Path="Docs/skills.md" />
     <File Path="README.md" />
+  </Folder>
+  <Folder Name="/Docs/adr/">
+    <File Path="Docs/adr/0001-ssot-runcontext.md" />
+    <File Path="Docs/adr/0002-tool-skill-protocol.md" />
+    <File Path="Docs/adr/0003-tracing-schema.md" />
+    <File Path="Docs/adr/0004-reflection-retry-policy.md" />
+  </Folder>
+  <Folder Name="/Docs/diagrams/">
+    <File Path="Docs/diagrams/plan-exec-state.mmd" />
+    <File Path="Docs/diagrams/README.md" />
+    <File Path="Docs/diagrams/runtime-sequence.mmd" />
+  </Folder>
+  <Folder Name="/Docs/weeks/">
+    <File Path="Docs/weeks/Week4 - 最小陪伴体（Persona + Profile + 会话级 API）.md" />
+    <File Path="Docs/weeks/Week4_plan.md" />
+    <File Path="Docs/weeks/Week5.md" />
   </Folder>
   <Folder Name="/Src/">
     <Project Path="Src/SKAgent.Agents/SKAgent.Agents.csproj" Id="23aa8e5c-c096-4208-9d1d-8631ed77c179" />

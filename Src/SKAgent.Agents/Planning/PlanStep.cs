@@ -4,35 +4,36 @@ using System.Text;
 
 namespace SKAgent.Agents.Planning
 {
+    /// <summary>
+    /// 【Planning 层 - 计划步骤模型】
+    /// 表示执行计划中的单个步骤，指定由哪个 Agent 执行什么指令。
+    /// 由 PlannerAgent 通过 LLM 生成，嵌套在 AgentPlan.Steps 中。
+    /// PlanExecutor 为每个 PlanStep 创建独立的 StepContext 执行。
+    /// </summary>
     public sealed class PlanStep
     {
         /// <summary>
-        /// 执行顺序
+        /// 执行顺序编号，PlanExecutor 按此字段升序执行。
         /// </summary>
-        /// <value>
-        /// The order.
-        /// </value>
         public int Order { get; init; }
+
         /// <summary>
-        /// 目标Agent
+        /// 目标 Agent 名称，对应 IAgent.Name。
+        /// PlanExecutor 将此值写入 StepContext.Target，由 RouterAgent 进行路由匹配。
+        /// 常见值: "chat"、"mcp"。
         /// </summary>
-        /// <value>
-        /// The agent.
-        /// </value>
         public string Agent { get; init; } = string.Empty;
+
         /// <summary>
-        /// 给Agent的指令
+        /// Planner 为该步骤生成的具体指令，作为 StepContext.Input 传递给目标 Agent。
+        /// 例如: "根据用户的作息和地点，给出养生建议"。
         /// </summary>
-        /// <value>
-        /// The instruction.
-        /// </value>
         public string Instruction { get; init; } = string.Empty;
+
         /// <summary>
-        /// Planner对于该步骤的预期输出  用于反思
+        /// Planner 对该步骤的预期输出描述，用于后续反思机制的对齐验证。
+        /// 当前版本为预留字段，暂未启用反思逻辑。
         /// </summary>
-        /// <value>
-        /// The expected output.
-        /// </value>
         public string? ExpectedOutput { get; init; }
     }
 }

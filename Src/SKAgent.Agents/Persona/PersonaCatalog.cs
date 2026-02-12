@@ -4,8 +4,20 @@ using System.Text;
 
 namespace SKAgent.Agents.Persona
 {
+    /// <summary>
+    /// 【Persona 层 - 人格预设目录】
+    /// 提供预定义的 PersonaOptions 实例，作为人格配置的“目录”。
+    /// 在 DependencyInjection 中通过 PersonaCatalog.EngineerTCM 获取并注册到 DI 容器。
+    /// 后续可扩展为从配置文件/数据库动态加载。
+    /// </summary>
     public static class PersonaCatalog
     {
+        /// <summary>
+        /// “工程师 + 中医养生”人格预设。
+        /// 当前解决方案默认使用的人格，具备工程思维与中医养生双视角。
+        /// SystemPrompt 定义了回复规则（澄清目标、结论优先、不夸大疗效等）。
+        /// PlannerHint 指导 Planner 在涉及养生时增加背景询问步骤。
+        /// </summary>
         public static PersonaOptions EngineerTCM => new PersonaOptions
         {
 
@@ -27,6 +39,9 @@ namespace SKAgent.Agents.Persona
             """
         };
 
+        /// <summary>
+        /// 中性人格预设，客观简洁，适用于通用场景。
+        /// </summary>
         public static PersonaOptions Neutral => new()
         {
             Name = "neutral",
