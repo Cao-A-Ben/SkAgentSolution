@@ -1,5 +1,6 @@
 <Solution>
-  <Folder Name="/Doc/">
+  <Folder Name="/Docs/">
+    <File Path="Docs/Week4 - 最小陪伴体（Persona + Profile + 会话级 API）.md" />
     <File Path="README.md" />
   </Folder>
   <Folder Name="/Src/">
