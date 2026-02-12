@@ -4,6 +4,7 @@ using System.Text;
 using System.Text.Json;
 using Microsoft.SemanticKernel;
 using Microsoft.SemanticKernel.Connectors.OpenAI;
+using SKAgent.Agents.Persona;
 using SKAgent.Agents.Runtime;
 using SKAgent.Core.Agent;
 using SKAgent.Core.Utilities;
@@ -15,15 +16,20 @@ namespace SKAgent.Agents.Planning
 
         private readonly Kernel _kernel;
 
-        public PlannerAgent(Kernel kernel)
+        private readonly PersonaOptions _persona;
+        public PlannerAgent(Kernel kernel, PersonaOptions persona)
         {
             _kernel = kernel;
+            _persona = persona;
         }
 
         public async Task<AgentPlan> CreatPlanAsync(AgentRunContext run)
         {
             var prompt = """
 你是一个 Agent Planner
+人格约束[必须遵守]:
+{{$hint}}
+
 你的任务是：
 - 将用户请求拆解为一组有序的执行步骤(Plan)
 - 每个步骤只能由一个Agent执行
@@ -55,7 +61,6 @@ namespace SKAgent.Agents.Planning
 {{$input}}
 """;
 
-
             //var result = await _kernel.InvokePromptAsync<PlannerDecision>(prompt, new KernelArguments { ["input"] = userInput });
 
             var plannerInput = BuildPlannerContext(run);
@@ -64,7 +69,11 @@ namespace SKAgent.Agents.Planning
                 Temperature = 0,
                 //ResponseFormat = OpenAI.Chat.ChatResponseFormat.CreateTextFormat()
             };
-            var arguments = new KernelArguments { ["input"] = plannerInput };
+            var arguments = new KernelArguments(settings)
+            {
+                ["hint"] = _persona.PlannerHint,
+                ["input"] = plannerInput,
+            };
             var result = await _kernel.InvokePromptAsync(prompt, arguments);
 
 
@@ -85,7 +94,13 @@ namespace SKAgent.Agents.Planning
         {
             //最近turns 只取短摘要，避免prompt膨胀
             var sb = new StringBuilder();
-
+            if (run.ConversationState.TryGetValue("profile", out var p) && p is Dictionary<string, string> profile && profile.Count > 0)
+            {
+                sb.AppendLine("[User Profile]");
+                foreach (var kv in profile)
+                    sb.AppendLine($"{kv.Key}={kv.Value}");
+                sb.AppendLine();
+            }
             if (run.RecentTurns.Count > 0)
             {
                 sb.AppendLine("[Recent Conversation Memory]");
@@ -101,7 +116,7 @@ namespace SKAgent.Agents.Planning
                 sb.AppendLine();
             }
             sb.AppendLine("[Current User Input]");
-            sb.AppendLine(run.Root.Input);
+            sb.AppendLine(run.UserInput);
 
             return sb.ToString();
         }

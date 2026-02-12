@@ -11,12 +11,10 @@ namespace SKAgent.Agents.Execution
     public sealed class PlanExecutor
     {
         public readonly RouterAgent _router;
-        private readonly IShortTermMemory _stm;
 
-        public PlanExecutor(RouterAgent router, IShortTermMemory stm)
+        public PlanExecutor(RouterAgent router)
         {
             _router = router;
-            _stm = stm;
         }
 
 

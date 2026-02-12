@@ -1,9 +1,12 @@
 ﻿using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using SKAgent.Agents;
+using SKAgent.Agents.Chat;
 using SKAgent.Agents.Execution;
 using SKAgent.Agents.Memory;
+using SKAgent.Agents.Persona;
 using SKAgent.Agents.Planning;
+using SKAgent.Agents.Profile;
 using SKAgent.Agents.Runtime;
 using SKAgent.Core.Agent;
 using SKAgent.Core.Protocols.MCP;
@@ -35,6 +38,11 @@ namespace SKAgent.Host
 
             services.AddSingleton<IShortTermMemory>(new InMemoryShortTermMemory(maxPerConversation: 20));
             services.AddScoped<AgentRuntimeService>();
+            services.AddSingleton<PersonaOptions>(PersonaCatalog.EngineerTCM);
+            services.AddSingleton<IChatContextComposer, DefaultChatContextComposer>();
+
+
+            services.AddSingleton<IUserProfileStore, InMemoryUserProfileStore>();
 
             return services;
         }
