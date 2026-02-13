@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Text;
 using SKAgent.Agents.Execution;
 using SKAgent.Agents.Memory;
+using SKAgent.Agents.Observability;
 using SKAgent.Agents.Planning;
 using SKAgent.Core.Agent;
 
@@ -23,6 +24,8 @@ namespace SKAgent.Agents.Runtime
     /// </summary>
     public sealed class AgentRunContext
     {
+        #region fileds
+
         /// <summary>
         /// 本次运行的唯一标识 ID，用于追踪和审计。
         /// </summary>
@@ -102,6 +105,19 @@ namespace SKAgent.Agents.Runtime
         /// </summary>
         public List<ToolCallRecord> ToolCalls { get; } = new();
 
+        private long _eventSeq = 0;
+
+        public long EventSeq => _eventSeq;
+
+        public long NextEventSeq() => Interlocked.Increment(ref _eventSeq);
+
+        public IRunEventSink EventSink { get; set; } = NullRunEventSink.Instance;
+
+        public Dictionary<int, int> StepRetryCounts { get; private set; } = new();
+
+        #endregion
+
+        #region  cotr
         /// <summary>
         /// 初始化运行上下文。
         /// </summary>
@@ -119,7 +135,9 @@ namespace SKAgent.Agents.Runtime
                 ConversationState[kv.Key] = kv.Value;
             }
         }
+        #endregion
 
+        #region Function
         /// <summary>
         /// 设置执行计划和目标。由 AgentRuntimeService 在 PlannerAgent 返回计划后调用。
         /// </summary>
@@ -151,6 +169,7 @@ namespace SKAgent.Agents.Runtime
             {
                 Root.State[kv.Key] = kv.Value;
             }
+        #endregion
         }
     }
 }

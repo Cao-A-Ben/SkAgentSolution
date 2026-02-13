@@ -46,7 +46,7 @@ namespace SKAgent.Host.Controllers
                 ? v.ToString() : Guid.NewGuid().ToString("N");
 
             // 调用 AgentRuntimeService 执行完整流程
-            var run = await _runtimeService.RunAsync(conversationId, input, ct);
+            var run = await _runtimeService.RunAsync(conversationId, input, ct: ct);
 
             // 返回匿名对象（早期版本格式）
             return Ok(new
@@ -89,7 +89,7 @@ namespace SKAgent.Host.Controllers
                 ? req.ConversationId : Guid.NewGuid().ToString("N");
 
             // 2. 调用运行时服务执行完整流程
-            var run = await _runtimeService.RunAsync(conversationId, req.Input, ct);
+            var run = await _runtimeService.RunAsync(conversationId, req.Input, ct: ct);
 
             // 3. 从 ConversationState 中提取画像快照
             var profileSnapshot = run.ConversationState.TryGetValue("profile", out var p) ? p as Dictionary<string, string> : null;

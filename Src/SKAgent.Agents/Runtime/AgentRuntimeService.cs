@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Text;
 using SKAgent.Agents.Execution;
 using SKAgent.Agents.Memory;
+using SKAgent.Agents.Observability;
 using SKAgent.Agents.Persona;
 using SKAgent.Agents.Planning;
 using SKAgent.Agents.Profile;
@@ -76,8 +77,9 @@ namespace SKAgent.Agents.Runtime
         /// <param name="input">用户输入文本。</param>
         /// <param name="ct">取消令牌。</param>
         /// <returns>完整的运行上下文，包含输出、步骤、画像快照等。</returns>
-        public async Task<AgentRunContext> RunAsync(string conversationId, string input, CancellationToken ct = default)
+        public async Task<AgentRunContext> RunAsync(string conversationId, string input, IRunEventSink? eventSink = null, CancellationToken ct = default)
         {
+
             // 1. 创建 Root AgentContext
             var agentContext = new AgentContext
             {
@@ -88,6 +90,9 @@ namespace SKAgent.Agents.Runtime
 
             // 2. 创建 AgentRunContext（SSOT），封装本次运行的所有状态
             var run = new AgentRunContext(agentContext, conversationId);
+
+            //规划开始
+            await run.EmitAsync("run_started", new { input = run.UserInput }, run.Root.CancellationToken);
 
             // 3. 从短期记忆加载最近 4 轮对话记录，供 Planner 和 ChatAgent 参考上下文
             var recent = await _stm.GetRecentAsync(conversationId, take: 4, ct);
@@ -111,6 +116,16 @@ namespace SKAgent.Agents.Runtime
             var plan = await _planner.CreatPlanAsync(run);
             run.SetPlan(plan);
 
+            //规划后
+            await run.EmitAsync("plan_created", new
+            {
+                goal = plan.Goal,
+                stepCount = plan.Steps.Count,
+                steps = plan.Steps.Select(s => new { order = s.Order, kind = s.Kind.ToString(), target = s.Target })
+            }, run.Root.CancellationToken);
+
+
+
             // 8. 调用 PlanExecutor 逐步执行计划
             await _executor.ExecuteAsync(run);
 
@@ -129,8 +144,12 @@ namespace SKAgent.Agents.Runtime
                 run.ConversationState["profile"] = merged;
             }
 
+            //结束
+            await run.EmitAsync("run_completed", new { finalOutput = run.FinalOutput }, run.Root.CancellationToken);
+
             return run;
         }
+
 
         /// <summary>
         /// 将本轮对话记录写入短期记忆。

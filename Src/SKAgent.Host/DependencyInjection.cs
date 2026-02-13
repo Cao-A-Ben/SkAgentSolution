@@ -4,9 +4,12 @@ using SKAgent.Agents;
 using SKAgent.Agents.Chat;
 using SKAgent.Agents.Execution;
 using SKAgent.Agents.Memory;
+using SKAgent.Agents.Observability;
+using SKAgent.Agents.Observability.Exporters;
 using SKAgent.Agents.Persona;
 using SKAgent.Agents.Planning;
 using SKAgent.Agents.Profile;
+using SKAgent.Agents.Reflection;
 using SKAgent.Agents.Runtime;
 using SKAgent.Agents.Tools.Abstractions;
 using SKAgent.Agents.Tools.Invoker;
@@ -34,6 +37,8 @@ namespace SKAgent.Host
         /// <returns>服务集合（支持链式调用）。</returns>
         public static IServiceCollection AddSkAgentServices(this IServiceCollection services, IConfiguration configuration)
         {
+            services.AddSingleton<IHttpContextAccessor, HttpContextAccessor>();
+
             // 1. 注册 Semantic Kernel 实例（单例，通过 KernelFactory 创建）
             services.AddSingleton(KernelFactory.Create(configuration));
 
@@ -77,8 +82,25 @@ namespace SKAgent.Host
             services.AddSingleton<IToolBootstrapper, DefaultToolBootstrapper>();
 
 
+            services.AddSingleton<IRunEventSink, NullRunEventSink>();//默认使用 NullSink
+            services.AddScoped<IRunEventSink>(sp =>
+            {
+                var httpContextAccessor = sp.GetRequiredService<IHttpContextAccessor>();
+                var response = httpContextAccessor.HttpContext?.Response;
+                return new SseRunEventSink(response!); // SSE 用的事件流
+            });
 
-
+            // Create a CompositeRunEventSink that aggregates multiple sinks
+            // 修改为：注入所有实现的 IRunEventSink 实例
+            services.AddSingleton<IRunEventSink>(sp =>
+            {
+                // 获取所有注册的 IRunEventSink 实现
+                var sinks = sp.GetServices<IRunEventSink>().ToArray();
+                return new CompositeRunEventSink(sinks);  // 使用数组传递多个 sinks 实例
+            });
+            // 注册 Reflection 服务
+            services.AddSingleton<IOutputEvaluator, SimpleOutputEvaluator>();
+            services.AddSingleton<IReflectionAgent, ReflectionAgent>();
             return services;
         }
     }

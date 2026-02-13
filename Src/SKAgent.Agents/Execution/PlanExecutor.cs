@@ -3,7 +3,9 @@ using System.Collections.Generic;
 using System.Text;
 using System.Text.Json;
 using SKAgent.Agents.Memory;
+using SKAgent.Agents.Observability;
 using SKAgent.Agents.Planning;
+using SKAgent.Agents.Reflection;
 using SKAgent.Agents.Runtime;
 using SKAgent.Agents.Tools.Abstractions;
 using SKAgent.Core.Agent;
@@ -31,15 +33,18 @@ namespace SKAgent.Agents.Execution
         /// <summary>工具调用器，负责执行 Kind=Tool 的步骤。</summary>
         private readonly IToolInvoker _toolInvoker;
 
+        private readonly IReflectionAgent _reflectionAgent;
+
         /// <summary>
         /// 初始化计划执行器。
         /// </summary>
         /// <param name="router">路由 Agent 实例。</param>
         /// <param name="toolInvoker">工具调用器实例。</param>
-        public PlanExecutor(RouterAgent router, IToolInvoker toolInvoker)
+        public PlanExecutor(RouterAgent router, IToolInvoker toolInvoker, IReflectionAgent reflectionAgent)
         {
             _router = router;
             _toolInvoker = toolInvoker;
+            _reflectionAgent = reflectionAgent;
         }
 
         /// <summary>
@@ -68,6 +73,8 @@ namespace SKAgent.Agents.Execution
             // 4. 逐步执行
             foreach (var step in steps)
             {
+                await run.EmitAsync("step_started", new { order = step.Order, kind = step.Kind.ToString(), target = step.Target }, run.Root.CancellationToken);
+
                 // 4.1 检查取消令牌
                 run.Root.CancellationToken.ThrowIfCancellationRequested();
 
@@ -128,11 +135,47 @@ namespace SKAgent.Agents.Execution
                         // 失败： 先终止 再接反思重试
                         if (!result.Success)
                         {
+
+                            var attempt = run.StepRetryCounts.ContainsKey(step.Order) ? run.StepRetryCounts[step.Order] : 0;
+
+                            // 使用 ReflectionAgent 决定是否重试
+                            var reflectionDecision = await _reflectionAgent.DecideAsync(run, step, "Tool step failed", run.Root.CancellationToken);
+
+                            if (reflectionDecision.Action == ReflectionDecisionKind.RetrySameStep && attempt < 3)// 设置最大重试次数
+                            {
+                                run.StepRetryCounts[step.Order] = attempt + 1;
+
+                                await run.EmitAsync("retry_scheduled", new
+                                {
+                                    order = step.Order,
+                                    reason = reflectionDecision.Reason,
+                                    attempt = attempt + 1,
+                                    max = 3
+                                }, run.Root.CancellationToken);
+                                continue; // 跳过当前失败步骤，重试
+                            }
+
+                            //达到最大重试次数或不重试，终止Run
+                            await run.EmitAsync("step_failed", new
+                            {
+                                order = step.Order,
+                                success = false,
+                                error = exec.Error
+                            }, run.Root.CancellationToken);
+
+
                             run.Status = AgentRunStatus.Failed;
                             run.FinalOutput = string.Join("\n", run.Steps.Select(d => d.Output));
                             run.SyncStateBackToRoot();
-                            return;
+                            return;//终止执行
                         }
+                        await run.EmitAsync("step_completed", new
+                        {
+                            order = step.Order,
+                            success = true,
+                            outputPreview = exec.Output
+                        }, run.Root.CancellationToken);
+
 
                         continue;
                     }
@@ -159,6 +202,34 @@ namespace SKAgent.Agents.Execution
                     // 4.7 如果执行失败，立即终止整个 Run
                     if (!resultAgent.IsSuccess)
                     {
+                        //处理失败并反思重试
+                        var attempt = run.StepRetryCounts.ContainsKey(step.Order) ? run.StepRetryCounts[step.Order] : 0;
+
+                        // 使用 ReflectionAgent 决定是否重试
+                        var reflectionDecision = await _reflectionAgent.DecideAsync(run, step, "Tool step failed", run.Root.CancellationToken);
+                        if (reflectionDecision.Action == ReflectionDecisionKind.RetrySameStep && attempt < 3)// 设置最大重试次数
+                        {
+                            run.StepRetryCounts[step.Order] = attempt + 1;
+
+                            await run.EmitAsync("retry_scheduled", new
+                            {
+                                order = step.Order,
+                                reason = reflectionDecision.Reason,
+                                attempt = attempt + 1,
+                                max = 3
+                            }, run.Root.CancellationToken);
+                            continue; // 跳过当前失败步骤，重试
+                        }
+
+
+                        await run.EmitAsync("step_failed", new
+                        {
+                            order = step.Order,
+                            success = false,
+                            error = exec.Error
+                        }, run.Root.CancellationToken);
+
+
                         exec.Error = exec.Error ?? "AgentResult.IsSuccess=false";
                         run.Status = AgentRunStatus.Failed;
                         run.FinalOutput = string.Join("\n", run.Steps.Select(d => d.Output));
@@ -171,11 +242,24 @@ namespace SKAgent.Agents.Execution
                     {
                         run.ConversationState["next_agent_override"] = resultAgent.NextAgent!;
                     }
+
+                    await run.EmitAsync("step_completed", new
+                    {
+                        order = step.Order,
+                        success = true,
+                        outputPreview = exec.Output
+                    }, run.Root.CancellationToken);
                     #endregion
 
                 }
                 catch (Exception ex)
                 {
+                    await run.EmitAsync("step_failed", new
+                    {
+                        order = step.Order,
+                        success = false,
+                        error = ex.Message
+                    }, run.Root.CancellationToken);
                     // 4.9 异常处理：记录错误并终止 Run
                     exec.Error = ex.Message;
                     exec.Status = StepExecutionStatus.Failed;
@@ -220,7 +304,7 @@ namespace SKAgent.Agents.Execution
                 RequestId = run.Root.RequestId,
                 CancellationToken = run.Root.CancellationToken,
                 Target = target,
-                Input = step.Instruction??"",
+                Input = step.Instruction ?? "",
                 ExpectedOutput = step.ExpectedOutput
             };
 
