@@ -1,9 +1,11 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Text;
+using System.Text.Json;
 using SKAgent.Agents.Memory;
 using SKAgent.Agents.Planning;
 using SKAgent.Agents.Runtime;
+using SKAgent.Agents.Tools.Abstractions;
 using SKAgent.Core.Agent;
 
 namespace SKAgent.Agents.Execution
@@ -26,13 +28,18 @@ namespace SKAgent.Agents.Execution
         /// <summary>路由 Agent，负责将 StepContext 分发到目标 Agent。</summary>
         public readonly RouterAgent _router;
 
+        /// <summary>工具调用器，负责执行 Kind=Tool 的步骤。</summary>
+        private readonly IToolInvoker _toolInvoker;
+
         /// <summary>
         /// 初始化计划执行器。
         /// </summary>
         /// <param name="router">路由 Agent 实例。</param>
-        public PlanExecutor(RouterAgent router)
+        /// <param name="toolInvoker">工具调用器实例。</param>
+        public PlanExecutor(RouterAgent router, IToolInvoker toolInvoker)
         {
             _router = router;
+            _toolInvoker = toolInvoker;
         }
 
         /// <summary>
@@ -74,21 +81,83 @@ namespace SKAgent.Agents.Execution
 
                 try
                 {
+
+                    #region tool
+                    if (step.Kind == PlanStepKind.Tool)
+                    {
+                        // Tool Step 执行路径
+
+                        var toolName = step.Target ?? throw new InvalidOperationException("Tool step missing ToolName.");
+                        var argsjson = step.ArgumentsJson ?? "{}";
+
+                        using var doc = JsonDocument.Parse(argsjson);
+                        var args = doc.RootElement;
+
+                        var invocation = new ToolInvocation(
+                            RunId: run.Root.RequestId,
+                            StepId: step.Order.ToString(),
+                            ToolName: toolName,
+                            Arguments: args
+                            );
+
+                        var result = await _toolInvoker.InvokeAsync(invocation, run.Root.CancellationToken);
+
+                        // 写入Exec (SSOT)
+                        exec.Output = result.Output.ToString();
+                        exec.Status = result.Success ? StepExecutionStatus.Success : StepExecutionStatus.Failed;
+
+                        if (!result.Success)
+                        {
+                            exec.Error = result.Error?.Message ?? "ToolResult.Sucess=false";
+                        }
+
+                        // 写入run.ToolCalls (SSOT)
+                        run.ToolCalls.Add(new ToolCallRecord
+                        (
+                            StepOrder: step.Order,
+                            ToolName: toolName,
+                            ArgsPreview: PreviewJson(argsjson, 300),
+                            Success: result.Success,
+                            OutputPreview: exec.Output,
+                            ErrorCode: result.Error?.Code,
+                            ErrorMessage: result.Error?.Message,
+                            LatencyMs: result.Metrics?.LatencyMs ?? 0
+                            ));
+
+
+                        // 失败： 先终止 再接反思重试
+                        if (!result.Success)
+                        {
+                            run.Status = AgentRunStatus.Failed;
+                            run.FinalOutput = string.Join("\n", run.Steps.Select(d => d.Output));
+                            run.SyncStateBackToRoot();
+                            return;
+                        }
+
+                        continue;
+                    }
+
+                    #endregion
+
+
+                    #region Agent
+
+
                     // 4.3 创建独立的 StepContext（继承 ConversationState，但 Input 替换为 Step.Instruction）
                     var stepContext = CreateStepContext(run, step);
 
                     // 4.4 通过 RouterAgent 路由到目标 Agent 执行
-                    var result = await _router.ExecuteAsync(stepContext);
+                    var resultAgent = await _router.ExecuteAsync(stepContext);
 
                     // 4.5 记录执行结果和状态
-                    exec.Output = result.Output;
-                    exec.Status = result.IsSuccess ? StepExecutionStatus.Success : StepExecutionStatus.Failed;
+                    exec.Output = resultAgent.Output;
+                    exec.Status = resultAgent.IsSuccess ? StepExecutionStatus.Success : StepExecutionStatus.Failed;
 
                     // 4.6 合并 Step 的 State 回会话级 ConversationState（用于后续步骤和记忆）
                     MergeState(run.ConversationState, stepContext.State);
 
                     // 4.7 如果执行失败，立即终止整个 Run
-                    if (!result.IsSuccess)
+                    if (!resultAgent.IsSuccess)
                     {
                         exec.Error = exec.Error ?? "AgentResult.IsSuccess=false";
                         run.Status = AgentRunStatus.Failed;
@@ -98,10 +167,12 @@ namespace SKAgent.Agents.Execution
                     }
 
                     // 4.8 支持动态路由：如果 Agent 返回了 NextAgent，覆盖后续步骤的目标
-                    if (!string.IsNullOrWhiteSpace(result.NextAgent))
+                    if (!string.IsNullOrWhiteSpace(resultAgent.NextAgent))
                     {
-                        run.ConversationState["next_agent_override"] = result.NextAgent!;
+                        run.ConversationState["next_agent_override"] = resultAgent.NextAgent!;
                     }
+                    #endregion
+
                 }
                 catch (Exception ex)
                 {
@@ -136,7 +207,7 @@ namespace SKAgent.Agents.Execution
         private static AgentContext CreateStepContext(AgentRunContext run, PlanStep step)
         {
             // 1. 确定目标 Agent（优先使用动态路由覆盖）
-            var target = step.Agent;
+            var target = step.Target;
             if (run.ConversationState.TryGetValue("next_agent_override", out var next) && next is string s && !string.IsNullOrWhiteSpace(s))
             {
                 target = s;
@@ -149,7 +220,7 @@ namespace SKAgent.Agents.Execution
                 RequestId = run.Root.RequestId,
                 CancellationToken = run.Root.CancellationToken,
                 Target = target,
-                Input = step.Instruction,
+                Input = step.Instruction??"",
                 ExpectedOutput = step.ExpectedOutput
             };
 
@@ -174,6 +245,24 @@ namespace SKAgent.Agents.Execution
         {
             foreach (var kv in stepState)
                 conversationState[kv.Key] = kv.Value;
+        }
+
+        /// <summary>
+        /// 将 JsonElement 转为字符串并截断到指定长度，避免大 JSON 占用过多空间。
+        /// </summary>
+        private static string SafePreview(System.Text.Json.JsonElement output)
+        {
+            var s = output.ToString() ?? "";
+            return PreviewJson(s, 500);
+        }
+
+        /// <summary>
+        /// 将字符串截断到指定长度，超出部分以 "..." 结尾。
+        /// </summary>
+        private static string PreviewJson(string s, int max)
+        {
+            if (string.IsNullOrEmpty(s)) return s;
+            return s.Length <= max ? s : s.Substring(0, max) + "...";
         }
 
     }

@@ -33,11 +33,18 @@ namespace SKAgent.Agents.Runtime
         /// </summary>
         public string? Error { get; set; }
 
-        /// <summary>便捷属性：目标 Agent 名称，等价于 Step.Agent，用于反思或调试。</summary>
-        public string Agent => Step.Agent;
+        /// <summary>便捷属性：目标 Agent 名称，等价于 Step.Target，用于反思或调试。</summary>
+        public string Agent => Step.Target;
+
+        /// <summary>便捷属性：步骤类型字符串，等价于 Step.Kind.ToString()。</summary>
+        public string Kind => Step.Kind.ToString();
+
+        /// <summary>便捷属性：带前缀的目标显示名，如 "tool:string.upper" 或 "agent:chat"。</summary>
+        public string DisplayTarget =>
+    Step.Kind == PlanStepKind.Tool ? $"tool:{Step.Target}" : $"agent:{Step.Target}";
 
         /// <summary>便捷属性：步骤指令，等价于 Step.Instruction。</summary>
-        public string Instruction => Step.Instruction;
+        public string? Instruction => Step.Instruction;
 
         /// <summary>便捷属性：执行顺序，等价于 Step.Order。</summary>
         public int Order => Step.Order;

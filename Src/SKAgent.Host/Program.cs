@@ -1,6 +1,8 @@
 using Microsoft.AspNetCore.HttpLogging;
 using Scalar.AspNetCore;
+using SKAgent.Agents.Tools.Abstractions;
 using SKAgent.Host;
+using SKAgent.Host.Boostrap;
 
 // ============================================
 // 【Host 层 - 应用程序入口】
@@ -31,6 +33,15 @@ if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
     app.MapScalarApiReference();
+}
+
+
+// ✅ Week5-1: Tool registry bootstrap (register built-in tools once at startup)
+using (var scope = app.Services.CreateScope())
+{
+    var registry = scope.ServiceProvider.GetRequiredService<IToolRegistry>();
+    var bootstrapper = scope.ServiceProvider.GetRequiredService<IToolBootstrapper>();
+    bootstrapper.RegisterAll(registry);
 }
 
 // 6. 强制 HTTPS 重定向

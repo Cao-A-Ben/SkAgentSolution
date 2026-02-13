@@ -2,10 +2,12 @@
 using System.Collections.Generic;
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using Microsoft.SemanticKernel;
 using Microsoft.SemanticKernel.Connectors.OpenAI;
 using SKAgent.Agents.Persona;
 using SKAgent.Agents.Runtime;
+using SKAgent.Agents.Tools.Abstractions;
 using SKAgent.Core.Agent;
 using SKAgent.Core.Utilities;
 
@@ -31,15 +33,20 @@ namespace SKAgent.Agents.Planning
         /// <summary>人格配置，提供 PlannerHint 作为计划拆解的额外约束。</summary>
         private readonly PersonaOptions _persona;
 
+        /// <summary>工具注册表，提供可用工具列表以注入 Planner prompt。</summary>
+        private readonly IToolRegistry _toolRegistry;
+
         /// <summary>
         /// 初始化 PlannerAgent。
         /// </summary>
         /// <param name="kernel">Semantic Kernel 实例。</param>
         /// <param name="persona">人格配置选项，提供 PlannerHint。</param>
-        public PlannerAgent(Kernel kernel, PersonaOptions persona)
+        /// <param name="toolRegistry">工具注册表，提供可用工具目录。</param>
+        public PlannerAgent(Kernel kernel, PersonaOptions persona, IToolRegistry toolRegistry)
         {
             _kernel = kernel;
             _persona = persona;
+            _toolRegistry = toolRegistry;
         }
 
         /// <summary>
@@ -56,6 +63,20 @@ namespace SKAgent.Agents.Planning
         /// <returns>LLM 生成的执行计划。</returns>
         public async Task<AgentPlan> CreatPlanAsync(AgentRunContext run)
         {
+
+            if (run.ConversationState.TryGetValue("debug_plan", out var v) && v is true)
+            {
+                return new AgentPlan
+                {
+                    Goal = "debug tools",
+                    Steps = new List<PlanStep>{
+            new PlanStep{ Order=1, Kind=PlanStepKind.Tool, Target="string.upper", ArgumentsJson="{\"text\":\"hello\"}" },
+            new PlanStep{ Order=2, Kind=PlanStepKind.Agent, Target="chat", Instruction="解释上一步工具输出" }
+                    }
+                };
+            }
+
+
             // Planner 的 prompt 模板，指导 LLM 输出 JSON 格式的执行计划
             var prompt = """
 你是一个 Agent Planner
@@ -74,6 +95,8 @@ namespace SKAgent.Agents.Planning
 可用Agent:
 - chat : 适合解释、问答、知识类问题
 - mcp  : 适合调用外部系统、工具或协议
+可用Tools:
+{{$tools}}
 
 输出格式必须是：
 {
@@ -81,13 +104,27 @@ namespace SKAgent.Agents.Planning
     "steps":[
         {
            "order":1,
-           "agent":"chat",
-           "instruction":"...",
-           "expectedOutput":"..."
+           "kind":"tool",
+           "target":"string.upper",
+           "argumentsJson": "{\"text\":\"hello\"}",
+           "expectedOutput": "HELLO"
         },
+         {
+           "order": 2,
+           "kind": "agent",
+           "target": "chat",
+           "instruction": "解释上一步结果给用户",
+           "expectedOutput": "用户理解含义"
+         }
         ...
     ]
 }
+
+字段规则:
+- Kind 只能是"agent"或 "tool"
+- kind="agent"时, 必须有target、instruction; argumentsJson 必须为空或缺省值
+- kind="tool"时, 必须有target、argumentsJson; instruction 可为空或缺省值
+- argumentsJson必须是一个JSON字符串(注意转义)，且能反序列化为一个对象,不要输出嵌套对象
 
 用户输入:
 {{$input}}
@@ -105,6 +142,7 @@ namespace SKAgent.Agents.Planning
             // 3. 将 hint 和 input 注入 prompt 模板变量
             var arguments = new KernelArguments(settings)
             {
+                ["tools"] = BuildToolCatalog(),
                 ["hint"] = _persona.PlannerHint,
                 ["input"] = plannerInput,
             };
@@ -121,7 +159,8 @@ namespace SKAgent.Agents.Planning
             // 6. 反序列化为 AgentPlan 对象（属性名忽略大小写）
             var options = new JsonSerializerOptions
             {
-                PropertyNameCaseInsensitive = true
+                PropertyNameCaseInsensitive = true,
+                Converters = { new JsonStringEnumConverter(JsonNamingPolicy.CamelCase) }
             };
 
             return JsonSerializer.Deserialize<AgentPlan>(json, options)!;
@@ -167,6 +206,24 @@ namespace SKAgent.Agents.Planning
             sb.AppendLine("[Current User Input]");
             sb.AppendLine(run.UserInput);
 
+            return sb.ToString();
+        }
+
+
+        /// <summary>
+        /// 构建可用工具目录字符串，注入 Planner prompt 的 {{$tools}} 变量。
+        /// 格式：每行 "- 工具名: 描述"，无可用工具时返回 "(无)"。
+        /// </summary>
+        private string BuildToolCatalog()
+        {
+            var tools = _toolRegistry.List();
+            if (tools.Count == 0) return "(无)";
+
+            var sb = new StringBuilder();
+            foreach (var tool in tools)
+            {
+                sb.AppendLine($"- {tool.Name}: {tool.Description}");
+            }
             return sb.ToString();
         }
     }

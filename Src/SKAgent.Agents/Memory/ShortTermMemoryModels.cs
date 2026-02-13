@@ -50,16 +50,25 @@ namespace SKAgent.Agents.Memory
         /// </summary>
         public int Order { get; init; }
 
-        /// <summary>
-        /// 执行该步骤的 Agent 名称，对应 PlanStep.Agent。
-        /// </summary>
-        public string Agent { get; init; } = string.Empty;
+        /// <summary>步骤类型：Agent / Tool</summary>
+        public string Kind { get; init; } = string.Empty;
+        ///// <summary>
+        ///// 执行该步骤的 Agent 名称，对应 PlanStep.Agent。
+        ///// </summary>
+        //public string Agent { get; init; } = string.Empty;
 
+        /// <summary>
+        /// 当 Kind=Agent：Agent 名称（chat/mcp/...）
+        /// 当 Kind=Tool ：工具名（string.upper/http.get/...）
+        /// </summary>
+        public string Target { get; init; } = string.Empty;
         /// <summary>
         /// Planner 为该步骤生成的指令文本，对应 PlanStep.Instruction。
         /// </summary>
-        public string Instruction { get; init; } = string.Empty;
+        public string? Instruction { get; init; } = string.Empty;
 
+        /// <summary>Tool 参数 JSON 字符串（Kind=Tool 时使用）</summary>
+        public string? ArgumentsJson { get; init; }
         /// <summary>
         /// 该步骤的实际输出文本。
         /// </summary>
@@ -70,4 +79,6 @@ namespace SKAgent.Agents.Memory
         /// </summary>
         public string Status { get; init; } = string.Empty;
     }
+
+
 }

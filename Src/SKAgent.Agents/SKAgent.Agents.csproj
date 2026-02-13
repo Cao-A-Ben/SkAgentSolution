@@ -11,4 +11,8 @@
     <ProjectReference Include="..\SKAgent.SemanticKernel\SKAgent.SemanticKernel.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Folder Include="Tools\Planning\" />
+  </ItemGroup>
+
 </Project>

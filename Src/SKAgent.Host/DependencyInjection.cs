@@ -8,8 +8,12 @@ using SKAgent.Agents.Persona;
 using SKAgent.Agents.Planning;
 using SKAgent.Agents.Profile;
 using SKAgent.Agents.Runtime;
+using SKAgent.Agents.Tools.Abstractions;
+using SKAgent.Agents.Tools.Invoker;
+using SKAgent.Agents.Tools.Registry;
 using SKAgent.Core.Agent;
 using SKAgent.Core.Protocols.MCP;
+using SKAgent.Host.Boostrap;
 using SKAgent.Infrastructure.Mcp;
 using SKAgent.SemanticKernel;
 
@@ -63,6 +67,17 @@ namespace SKAgent.Host
 
             // 10. 注册用户画像存储（内存版，单例）
             services.AddSingleton<IUserProfileStore, InMemoryUserProfileStore>();
+
+
+            // 11.1 注册工具注册表和调用器
+            services.AddSingleton<IToolRegistry, ToolRegistry>();
+            services.AddSingleton<IToolInvoker, ToolInvoker>();
+
+            //11.2 注册工具引导器
+            services.AddSingleton<IToolBootstrapper, DefaultToolBootstrapper>();
+
+
+
 
             return services;
         }

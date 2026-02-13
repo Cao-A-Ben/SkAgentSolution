@@ -93,6 +93,10 @@ namespace SKAgent.Agents.Runtime
             var recent = await _stm.GetRecentAsync(conversationId, take: 4, ct);
             run.SetRecentTurns(recent);
 
+            // 开启调试模式，记录更多细节到 ConversationState
+            run.ConversationState["debug_plan"] = true;
+
+
             // 4. 将 recent_turns 写入 ConversationState，让 StepContext/ChatAgent 能读取
             run.ConversationState["recent_turns"] = recent;
 
@@ -148,14 +152,17 @@ namespace SKAgent.Agents.Runtime
                 UserInput = run.UserInput,
                 AssistantOutput = run.FinalOutput ?? string.Empty,
                 Goal = run.Goal,
-                Steps = run.Steps.Select(s => new StepRecord
+                Steps = [.. run.Steps.Select(s => new StepRecord
                 {
                     Order = s.Step.Order,
-                    Agent = s.Step.Agent,
+                    //Agent = s.Step.Agent,
+                    Kind = s.Step.Kind.ToString().ToLower(),
+                    Target = s.Step.Target,
                     Instruction = s.Step.Instruction,
+                    ArgumentsJson = s.Step.ArgumentsJson,
                     Output = s.Output ?? string.Empty,
                     Status = s.Status.ToString()
-                }).ToList()
+                })]
             };
 
             // 3. 追加到短期记忆

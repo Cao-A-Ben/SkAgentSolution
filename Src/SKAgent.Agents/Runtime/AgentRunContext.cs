@@ -95,6 +95,13 @@ namespace SKAgent.Agents.Runtime
         /// </summary>
         public Dictionary<string, object> ConversationState { get; } = new(StringComparer.OrdinalIgnoreCase);
 
+
+        /// <summary>
+        /// 本次运行中所有 Kind=Tool 步骤的调用记录，由 PlanExecutor 逐步写入。
+        /// 用于审计、调试和后续反思机制。
+        /// </summary>
+        public List<ToolCallRecord> ToolCalls { get; } = new();
+
         /// <summary>
         /// 初始化运行上下文。
         /// </summary>
