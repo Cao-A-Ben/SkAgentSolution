@@ -82,22 +82,22 @@ namespace SKAgent.Host
             services.AddSingleton<IToolBootstrapper, DefaultToolBootstrapper>();
 
 
-            services.AddSingleton<IRunEventSink, NullRunEventSink>();//默认使用 NullSink
-            services.AddScoped<IRunEventSink>(sp =>
-            {
-                var httpContextAccessor = sp.GetRequiredService<IHttpContextAccessor>();
-                var response = httpContextAccessor.HttpContext?.Response;
-                return new SseRunEventSink(response!); // SSE 用的事件流
-            });
+            //services.AddSingleton<IRunEventSink, NullRunEventSink>();//默认使用 NullSink
+            //services.AddScoped<IRunEventSink>(sp =>
+            //{
+            //    var httpContextAccessor = sp.GetRequiredService<IHttpContextAccessor>();
+            //    var response = httpContextAccessor.HttpContext?.Response;
+            //    return new SseRunEventSink(response!); // SSE 用的事件流
+            //});
 
-            // Create a CompositeRunEventSink that aggregates multiple sinks
-            // 修改为：注入所有实现的 IRunEventSink 实例
-            services.AddSingleton<IRunEventSink>(sp =>
-            {
-                // 获取所有注册的 IRunEventSink 实现
-                var sinks = sp.GetServices<IRunEventSink>().ToArray();
-                return new CompositeRunEventSink(sinks);  // 使用数组传递多个 sinks 实例
-            });
+            //// Create a CompositeRunEventSink that aggregates multiple sinks
+            //// 修改为：注入所有实现的 IRunEventSink 实例
+            //services.AddSingleton<IRunEventSink>(sp =>
+            //{
+            //    // 获取所有注册的 IRunEventSink 实现
+            //    var sinks = sp.GetServices<IRunEventSink>().ToArray();
+            //    return new CompositeRunEventSink(sinks);  // 使用数组传递多个 sinks 实例
+            //});
             // 注册 Reflection 服务
             services.AddSingleton<IOutputEvaluator, SimpleOutputEvaluator>();
             services.AddSingleton<IReflectionAgent, ReflectionAgent>();

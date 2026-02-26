@@ -4,6 +4,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.Text;
 using SKAgent.Agents.Memory;
 using SKAgent.Agents.Persona;
+using SKAgent.Agents.Runtime;
 using SKAgent.Core.Agent;
 
 namespace SKAgent.Agents.Chat
@@ -83,9 +84,13 @@ namespace SKAgent.Agents.Chat
             // 2. 从 State 读取最近对话记忆
             var recent = stepContext.State.TryGetValue("recent_turns", out var r) ? r as IReadOnlyList<TurnRecord> : null;
 
+            var wm = stepContext.State.TryGetValue("working_memory", out var wmObj)
+                ? wmObj as RunWorkingMemory : null;
+
+
             // 3. 构建系统消息和用户消息
             var system = BuildSystem(_persona, profile, stepContext.Input);
-            var user = BuildUser(stepContext.Input, recent);
+            var user = BuildUser(stepContext.Input, recent, wm);
 
             return new ChatContext
             {
@@ -139,37 +144,72 @@ namespace SKAgent.Agents.Chat
         /// 构建用户消息。将最近对话记忆摘要和当前任务拼接为 UserMessage。
         /// 包含 Prompt Budget 控制：最多 3 轮、用户输入截断 60 字、助手输出截断 80 字、总计不超过 900 字符。
         /// </summary>
-        private static string BuildUser(string userInput, IReadOnlyList<TurnRecord>? recent)
+        private static string BuildUser(string currentTask, IReadOnlyList<TurnRecord>? recent, RunWorkingMemory? wm)
         {
             // 如果没有历史记忆，直接返回当前输入
-            if (recent == null || recent.Count == 0) return userInput;
 
             // Prompt Budget 参数
             const int maxTurns = 3;       // 最多引用 3 轮历史
             const int maxUserLen = 60;    // 用户输入摘要最大长度
             const int maxAsstLen = 80;    // 助手输出摘要最大长度
-            const int maxTotalChars = 900; // 总字符数上限
+            const int maxTotalChars = 1200; // 总字符数上限
 
             var sb = new StringBuilder();
-            sb.AppendLine("[Recent  Memory]");
 
-            // 取最近 3 轮并保持时间正序
-            var selected = recent.Reverse().Take(maxTurns).Reverse().ToList();
-
-            foreach (var t in selected)
+            if (recent != null && recent.Count > 0)
             {
-                // 对每轮的用户输入和助手输出进行单行截断
-                var u = OneLine(t.UserInput, maxUserLen);
-                var a = OneLine(t.AssistantOutput, maxAsstLen);
-                sb.AppendLine($"- U: {u}");
-                sb.AppendLine($"  A: {a}");
+                sb.AppendLine("[Recent  Memory]");
 
-                // 超过总字符上限时提前终止
-                if (sb.Length > maxTotalChars) break;
+                // 取最近 3 轮并保持时间正序
+                var selected = recent.Reverse().Take(maxTurns).Reverse().ToList();
+
+                foreach (var t in selected)
+                {
+                    // 对每轮的用户输入和助手输出进行单行截断
+                    var u = OneLine(t.UserInput, maxUserLen);
+                    var a = OneLine(t.AssistantOutput, maxAsstLen);
+                    sb.AppendLine($"- U: {u}");
+                    sb.AppendLine($"  A: {a}");
+
+                    // 超过总字符上限时提前终止
+                    if (sb.Length > maxTotalChars) break;
+
+                }
+                sb.AppendLine();
             }
+            if (wm?.LastStep != null)
+            {
+                sb.AppendLine("[Working Memory]");
+                sb.AppendLine($"- last_step: order={wm.LastStep.Order} kind={wm.LastStep.Kind} target={wm.LastStep.Target} success={wm.LastStep.Success}");
+
+                if (!string.IsNullOrWhiteSpace(wm.LastStep.Error))
+                    sb.AppendLine($"  error: {OneLine(wm.LastStep.Error!, 200)}");
+
+                if (!string.IsNullOrWhiteSpace(wm.LastStep.OutputPreview))
+                    sb.AppendLine($"  output: {OneLine(wm.LastStep.OutputPreview!, 400)}");
+
+                // 如果上一步是 tool，补充 tool 细节
+                if (wm.LastTool != null && wm.LastTool.Order == wm.LastStep.Order)
+                {
+                    sb.AppendLine($"- last_tool: {wm.LastTool.ToolName} latencyMs={wm.LastTool.LatencyMs} success={wm.LastTool.Success}");
+                    if (!string.IsNullOrWhiteSpace(wm.LastTool.ArgsPreview))
+                        sb.AppendLine($"  args: {OneLine(wm.LastTool.ArgsPreview!, 300)}");
+                    if (!string.IsNullOrWhiteSpace(wm.LastTool.OutputPreview))
+                        sb.AppendLine($"  result: {OneLine(wm.LastTool.OutputPreview!, 400)}");
+                }
+
+                sb.AppendLine();
+            }
+
             sb.AppendLine();
             sb.AppendLine("[Current Task]");
-            sb.AppendLine(userInput);
+            sb.AppendLine(currentTask);
+
+
+            // Budget 截断
+            if (sb.Length > maxTotalChars)
+                return sb.ToString()[..maxTotalChars] + "...";
+
             return sb.ToString();
         }
 

@@ -15,7 +15,7 @@
 一次 run 通常包含：
 1) run_started
 2) plan_started -> plan_created
-3) step 循环执行（可能包含 tool、retrieval、chat、reflection）
+3) step 循环执行（可能包含 tool、chat、reflection）
 4) 汇总输出（finalOutput）
 5) run_completed / run_failed
 
@@ -47,8 +47,7 @@
 - step kind 可能包括：
   - agent_step：调用子 agent / 模型对话
   - tool_step：调用 ToolInvoker
-  - retrieval_step：RAG/检索
-  - reflection_step：触发反思与计划修复（可选）
+  - reflection_step：触发反思与重试（当前仅支持同一步重试）
 
 必须发事件：
 - step_started / step_completed / step_failed
@@ -83,7 +82,9 @@
 - Plan：plan, plannerModel, plannerPromptHash
 - Steps：stepStates（status/start/end/error/outputPreview）
 - Tools：toolCalls（invocations/results/latency）
+- WorkingMemory：working_memory（最近一步与工具摘要）
 - Metrics：tokens, latency, retries, errorCounts
+- Retries：stepRetryCounts（按 step 统计）
 - Events：eventSeq（用于事件排序）
 - Final：finalOutput, summary
 

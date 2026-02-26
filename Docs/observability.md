@@ -27,11 +27,11 @@ Agent run 往往包含：
 
 建议所有事件使用统一 envelope：
 
-- runId: string
-- ts: string (ISO8601 UTC)
-- seq: long (单 run 内递增)
-- type: string (事件类型)
-- payload: object (随 type 变化)
+- RunId: string
+- TsUtc: string (ISO8601 UTC)
+- Seq: long (单 run 内递增)
+- Type: string (事件类型)
+- Payload: object (随 type 变化)
 
 seq 用于前端排序/去重，也用于 trace 回放稳定性。
 

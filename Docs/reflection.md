@@ -62,6 +62,12 @@ Executor 在 step 完成后：
 2) 若成功但 output mismatch -> ReflectionAgent -> retry/repair
 3) 若达到上限 -> step_failed 或 run_failed
 
+## 4. 当前实现说明
+
+- ReflectionAgent 目前仅返回 Retry Same Step。
+- 重试上限由执行器内置常量控制（单步最多重试）。
+- 当前事件流会发出 retry_scheduled 与 step_failed；reflection_triggered 尚未 emit。
+
 ## 5. Week5-3 验收标准
 
 - 至少实现：

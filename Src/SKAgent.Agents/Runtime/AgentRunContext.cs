@@ -105,14 +105,30 @@ namespace SKAgent.Agents.Runtime
         /// </summary>
         public List<ToolCallRecord> ToolCalls { get; } = new();
 
+        /// <summary>
+        /// 运行期事件序列号，单次运行内递增。
+        /// </summary>
         private long _eventSeq = 0;
 
+        /// <summary>
+        /// 当前事件序号快照（只读）。
+        /// </summary>
         public long EventSeq => _eventSeq;
 
+        /// <summary>
+        /// 获取下一个事件序号并递增。
+        /// </summary>
+        /// <returns>递增后的事件序号。</returns>
         public long NextEventSeq() => Interlocked.Increment(ref _eventSeq);
 
+        /// <summary>
+        /// 事件输出端，默认为 NullRunEventSink。
+        /// </summary>
         public IRunEventSink EventSink { get; set; } = NullRunEventSink.Instance;
 
+        /// <summary>
+        /// 步骤级重试次数跟踪（stepOrder -> attempt）。
+        /// </summary>
         public Dictionary<int, int> StepRetryCounts { get; private set; } = new();
 
         #endregion
@@ -123,11 +139,14 @@ namespace SKAgent.Agents.Runtime
         /// </summary>
         /// <param name="context">Root AgentContext，包含用户原始输入。</param>
         /// <param name="conversationId">会话唯一标识 ID。</param>
-        public AgentRunContext(AgentContext context, string conversationId)
+        /// <param name="eventSink">事件输出端，可选。</param>
+        public AgentRunContext(AgentContext context, string conversationId, IRunEventSink? eventSink = null)
         {
             Root = context ?? throw new ArgumentNullException(nameof(context));
             ConversationId = conversationId;
             UserInput = context.Input;
+            if (eventSink != null)
+                this.EventSink = eventSink;
 
             // 将 Root.State 中的初始数据复制到会话级 ConversationState
             foreach (var kv in context.State)

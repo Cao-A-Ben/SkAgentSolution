@@ -89,7 +89,7 @@ namespace SKAgent.Agents.Runtime
             };
 
             // 2. 创建 AgentRunContext（SSOT），封装本次运行的所有状态
-            var run = new AgentRunContext(agentContext, conversationId);
+            var run = new AgentRunContext(agentContext, conversationId,eventSink);
 
             //规划开始
             await run.EmitAsync("run_started", new { input = run.UserInput }, run.Root.CancellationToken);
@@ -99,7 +99,7 @@ namespace SKAgent.Agents.Runtime
             run.SetRecentTurns(recent);
 
             // 开启调试模式，记录更多细节到 ConversationState
-            run.ConversationState["debug_plan"] = true;
+            //run.ConversationState["debug_plan"] = true;
 
 
             // 4. 将 recent_turns 写入 ConversationState，让 StepContext/ChatAgent 能读取

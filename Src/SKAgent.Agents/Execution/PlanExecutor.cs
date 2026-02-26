@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Text;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using SKAgent.Agents.Memory;
 using SKAgent.Agents.Observability;
 using SKAgent.Agents.Planning;
@@ -33,8 +34,11 @@ namespace SKAgent.Agents.Execution
         /// <summary>工具调用器，负责执行 Kind=Tool 的步骤。</summary>
         private readonly IToolInvoker _toolInvoker;
 
+        /// <summary>反思 Agent，用于处理失败后的重试决策。</summary>
         private readonly IReflectionAgent _reflectionAgent;
 
+        /// <summary>单步最大重试次数。</summary>
+        const int maxRetriesPerStep = 3;
         /// <summary>
         /// 初始化计划执行器。
         /// </summary>
@@ -86,76 +90,132 @@ namespace SKAgent.Agents.Execution
                 };
                 run.Steps.Add(exec);
 
-                try
+                while (true)
                 {
-
-                    #region tool
-                    if (step.Kind == PlanStepKind.Tool)
+                    try
                     {
-                        // Tool Step 执行路径
 
-                        var toolName = step.Target ?? throw new InvalidOperationException("Tool step missing ToolName.");
-                        var argsjson = step.ArgumentsJson ?? "{}";
-
-                        using var doc = JsonDocument.Parse(argsjson);
-                        var args = doc.RootElement;
-
-                        var invocation = new ToolInvocation(
-                            RunId: run.Root.RequestId,
-                            StepId: step.Order.ToString(),
-                            ToolName: toolName,
-                            Arguments: args
-                            );
-
-                        var result = await _toolInvoker.InvokeAsync(invocation, run.Root.CancellationToken);
-
-                        // 写入Exec (SSOT)
-                        exec.Output = result.Output.ToString();
-                        exec.Status = result.Success ? StepExecutionStatus.Success : StepExecutionStatus.Failed;
-
-                        if (!result.Success)
+                        #region tool
+                        if (step.Kind == PlanStepKind.Tool)
                         {
-                            exec.Error = result.Error?.Message ?? "ToolResult.Sucess=false";
-                        }
+                            // Tool Step 执行路径
 
-                        // 写入run.ToolCalls (SSOT)
-                        run.ToolCalls.Add(new ToolCallRecord
-                        (
-                            StepOrder: step.Order,
-                            ToolName: toolName,
-                            ArgsPreview: PreviewJson(argsjson, 300),
-                            Success: result.Success,
-                            OutputPreview: exec.Output,
-                            ErrorCode: result.Error?.Code,
-                            ErrorMessage: result.Error?.Message,
-                            LatencyMs: result.Metrics?.LatencyMs ?? 0
-                            ));
+                            var toolName = step.Target ?? throw new InvalidOperationException("Tool step missing ToolName.");
+                            var argsJson = step.ArgumentsJson ?? "{}";
 
+                            using var doc = JsonDocument.Parse(argsJson);
+                            var args = doc.RootElement;
 
-                        // 失败： 先终止 再接反思重试
-                        if (!result.Success)
-                        {
+                            var invocation = new ToolInvocation(
+                                RunId: run.Root.RequestId,
+                                StepId: step.Order.ToString(),
+                                ToolName: toolName,
+                                Arguments: args
+                                );
+                            // tool_invoked
+                            await run.EmitAsync("tool_invoked", new { order = step.Order, toolName, argsPreview = WorkingMemoryHelper.Preview(argsJson, 300) }, run.Root.CancellationToken);
 
-                            var attempt = run.StepRetryCounts.ContainsKey(step.Order) ? run.StepRetryCounts[step.Order] : 0;
+                            var result = await _toolInvoker.InvokeAsync(invocation, run.Root.CancellationToken);
 
-                            // 使用 ReflectionAgent 决定是否重试
-                            var reflectionDecision = await _reflectionAgent.DecideAsync(run, step, "Tool step failed", run.Root.CancellationToken);
-
-                            if (reflectionDecision.Action == ReflectionDecisionKind.RetrySameStep && attempt < 3)// 设置最大重试次数
+                            await run.EmitAsync("tool_completed", new
                             {
-                                run.StepRetryCounts[step.Order] = attempt + 1;
+                                order = step.Order,
+                                toolName,
+                                success = result.Success,
+                                latencyMs = result.Metrics?.LatencyMs ?? 0,
+                                outputPreview = WorkingMemoryHelper.Preview(result.Output.ToString(), 600)
+                            }, run.Root.CancellationToken);
+                            // 写入Exec (SSOT)
+                            exec.Output = result.Output.ToString();
+                            exec.Status = result.Success ? StepExecutionStatus.Success : StepExecutionStatus.Failed;
+
+
+
+                            // 写入run.ToolCalls (SSOT)
+                            run.ToolCalls.Add(new ToolCallRecord
+                            (
+                                StepOrder: step.Order,
+                                ToolName: toolName,
+                                ArgsPreview: PreviewJson(argsJson, 300),
+                                Success: result.Success,
+                                OutputPreview: exec.Output,
+                                ErrorCode: result.Error?.Code,
+                                ErrorMessage: result.Error?.Message,
+                                LatencyMs: result.Metrics?.LatencyMs ?? 0
+                                ));
+
+
+                            // Working memory（先写 step，再写 tool）
+                            UpdateWorkingMemoryForStep(run, step, exec);
+                            UpdateWorkingMemoryForTool(run, step.Order, toolName, argsJson, result);
+
+                            if (result.Success)
+                            {
+                                await run.EmitAsync("step_completed", new { order = step.Order, success = true, outputPreview = exec.Output }, run.Root.CancellationToken);
+                                break; // ✅ step 完成，退出 while，进入下一个 step
+                            }
+                            // 失败：反思重试
+                            await run.EmitAsync("step_failed", new { order = step.Order, success = false, error = exec.Error }, run.Root.CancellationToken);
+
+                            var attempt = GetAttempt(run, step.Order);
+                            var decision = await _reflectionAgent.DecideAsync(run, step, "tool_step_failed", run.Root.CancellationToken);
+                            if (decision.Action == ReflectionDecisionKind.RetrySameStep && attempt < maxRetriesPerStep)
+                            {
+                                SetAttempt(run, step.Order, attempt + 1);
 
                                 await run.EmitAsync("retry_scheduled", new
                                 {
                                     order = step.Order,
-                                    reason = reflectionDecision.Reason,
+                                    reason = decision.Reason,
                                     attempt = attempt + 1,
-                                    max = 3
+                                    max = maxRetriesPerStep
                                 }, run.Root.CancellationToken);
-                                continue; // 跳过当前失败步骤，重试
+
+                                continue; // ✅ 继续 while：重试同一步
+                            }
+                            // 不重试：终止
+                            await FailRunAsync(run, step.Order, exec.Error ?? "tool_failed");
+                            return;
+                        }
+
+                        #endregion
+
+
+                        #region Agent
+                        else
+                        {
+
+                            // 4.3 创建独立的 StepContext（继承 ConversationState，但 Input 替换为 Step.Instruction）
+                            var stepContext = CreateStepContext(run, step);
+
+                            // 4.4 通过 RouterAgent 路由到目标 Agent 执行
+                            var resultAgent = await _router.ExecuteAsync(stepContext);
+
+                            // 4.5 记录执行结果和状态
+                            exec.Output = resultAgent.Output;
+                            exec.Status = resultAgent.IsSuccess ? StepExecutionStatus.Success : StepExecutionStatus.Failed;
+                            exec.Error = resultAgent.IsSuccess ? null : (exec.Error ?? "AgentResult.IsSuccess=false");
+
+
+
+                            // 4.6 合并 Step 的 State 回会话级 ConversationState（用于后续步骤和记忆）
+                            MergeState(run.ConversationState, stepContext.State);
+
+                            // 现在再写 working memory（error 已经填好）
+                            UpdateWorkingMemoryForStep(run, step, exec);
+
+
+                            if (resultAgent.IsSuccess)
+                            {
+                                if (!string.IsNullOrWhiteSpace(resultAgent.NextAgent))
+                                    run.ConversationState["next_agent_override"] = resultAgent.NextAgent!;
+
+                                await run.EmitAsync("step_completed", new { order = step.Order, success = true, outputPreview = exec.Output }, run.Root.CancellationToken);
+                                break;
                             }
 
-                            //达到最大重试次数或不重试，终止Run
+                            // 4.7 如果执行失败，立即终止整个 Run
+                            //处理失败并反思重试
                             await run.EmitAsync("step_failed", new
                             {
                                 order = step.Order,
@@ -163,110 +223,47 @@ namespace SKAgent.Agents.Execution
                                 error = exec.Error
                             }, run.Root.CancellationToken);
 
-
-                            run.Status = AgentRunStatus.Failed;
-                            run.FinalOutput = string.Join("\n", run.Steps.Select(d => d.Output));
-                            run.SyncStateBackToRoot();
-                            return;//终止执行
-                        }
-                        await run.EmitAsync("step_completed", new
-                        {
-                            order = step.Order,
-                            success = true,
-                            outputPreview = exec.Output
-                        }, run.Root.CancellationToken);
-
-
-                        continue;
-                    }
-
-                    #endregion
-
-
-                    #region Agent
-
-
-                    // 4.3 创建独立的 StepContext（继承 ConversationState，但 Input 替换为 Step.Instruction）
-                    var stepContext = CreateStepContext(run, step);
-
-                    // 4.4 通过 RouterAgent 路由到目标 Agent 执行
-                    var resultAgent = await _router.ExecuteAsync(stepContext);
-
-                    // 4.5 记录执行结果和状态
-                    exec.Output = resultAgent.Output;
-                    exec.Status = resultAgent.IsSuccess ? StepExecutionStatus.Success : StepExecutionStatus.Failed;
-
-                    // 4.6 合并 Step 的 State 回会话级 ConversationState（用于后续步骤和记忆）
-                    MergeState(run.ConversationState, stepContext.State);
-
-                    // 4.7 如果执行失败，立即终止整个 Run
-                    if (!resultAgent.IsSuccess)
-                    {
-                        //处理失败并反思重试
-                        var attempt = run.StepRetryCounts.ContainsKey(step.Order) ? run.StepRetryCounts[step.Order] : 0;
-
-                        // 使用 ReflectionAgent 决定是否重试
-                        var reflectionDecision = await _reflectionAgent.DecideAsync(run, step, "Tool step failed", run.Root.CancellationToken);
-                        if (reflectionDecision.Action == ReflectionDecisionKind.RetrySameStep && attempt < 3)// 设置最大重试次数
-                        {
-                            run.StepRetryCounts[step.Order] = attempt + 1;
-
-                            await run.EmitAsync("retry_scheduled", new
+                            var attempt = GetAttempt(run, step.Order);
+                            // 使用 ReflectionAgent 决定是否重试
+                            var decision = await _reflectionAgent.DecideAsync(run, step, "agent_step_failed", run.Root.CancellationToken);
+                            if (decision.Action == ReflectionDecisionKind.RetrySameStep && attempt < maxRetriesPerStep)
                             {
-                                order = step.Order,
-                                reason = reflectionDecision.Reason,
-                                attempt = attempt + 1,
-                                max = 3
-                            }, run.Root.CancellationToken);
-                            continue; // 跳过当前失败步骤，重试
+                                SetAttempt(run, step.Order, attempt + 1);
+
+                                await run.EmitAsync("retry_scheduled", new
+                                {
+                                    order = step.Order,
+                                    reason = decision.Reason,
+                                    attempt = attempt + 1,
+                                    max = maxRetriesPerStep
+                                }, run.Root.CancellationToken);
+
+                                continue; // ✅ 重试同一步（while）
+                            }
+                            await FailRunAsync(run, step.Order, exec.Error ?? "agent_failed");
+                            return;
                         }
 
+                        #endregion
+
+                    }
+                    catch (Exception ex)
+                    {
+                        // 4.9 异常处理：记录错误并终止 Run
+                        exec.Error = ex.Message;
+                        exec.Status = StepExecutionStatus.Failed;
+                        UpdateWorkingMemoryForStep(run, step, exec);
 
                         await run.EmitAsync("step_failed", new
                         {
                             order = step.Order,
                             success = false,
-                            error = exec.Error
+                            error = ex.Message
                         }, run.Root.CancellationToken);
 
-
-                        exec.Error = exec.Error ?? "AgentResult.IsSuccess=false";
-                        run.Status = AgentRunStatus.Failed;
-                        run.FinalOutput = string.Join("\n", run.Steps.Select(d => d.Output));
-                        run.SyncStateBackToRoot();
+                        await FailRunAsync(run, step.Order, ex.Message);
                         return;
                     }
-
-                    // 4.8 支持动态路由：如果 Agent 返回了 NextAgent，覆盖后续步骤的目标
-                    if (!string.IsNullOrWhiteSpace(resultAgent.NextAgent))
-                    {
-                        run.ConversationState["next_agent_override"] = resultAgent.NextAgent!;
-                    }
-
-                    await run.EmitAsync("step_completed", new
-                    {
-                        order = step.Order,
-                        success = true,
-                        outputPreview = exec.Output
-                    }, run.Root.CancellationToken);
-                    #endregion
-
-                }
-                catch (Exception ex)
-                {
-                    await run.EmitAsync("step_failed", new
-                    {
-                        order = step.Order,
-                        success = false,
-                        error = ex.Message
-                    }, run.Root.CancellationToken);
-                    // 4.9 异常处理：记录错误并终止 Run
-                    exec.Error = ex.Message;
-                    exec.Status = StepExecutionStatus.Failed;
-                    run.Status = AgentRunStatus.Failed;
-                    run.FinalOutput = string.Join("\n", run.Steps.Select(d => d.Output));
-                    run.SyncStateBackToRoot();
-                    return;
                 }
             }
 
@@ -332,21 +329,80 @@ namespace SKAgent.Agents.Execution
         }
 
         /// <summary>
-        /// 将 JsonElement 转为字符串并截断到指定长度，避免大 JSON 占用过多空间。
-        /// </summary>
-        private static string SafePreview(System.Text.Json.JsonElement output)
-        {
-            var s = output.ToString() ?? "";
-            return PreviewJson(s, 500);
-        }
-
-        /// <summary>
         /// 将字符串截断到指定长度，超出部分以 "..." 结尾。
         /// </summary>
         private static string PreviewJson(string s, int max)
         {
             if (string.IsNullOrEmpty(s)) return s;
             return s.Length <= max ? s : s.Substring(0, max) + "...";
+        }
+
+
+        /// <summary>
+        /// 获取指定步骤的已重试次数。
+        /// </summary>
+        private static int GetAttempt(AgentRunContext run, int stepOrder)
+        {
+            return run.StepRetryCounts.ContainsKey(stepOrder) ? run.StepRetryCounts[stepOrder] : 0;
+        }
+
+        /// <summary>
+        /// 记录指定步骤的重试次数。
+        /// </summary>
+        private static void SetAttempt(AgentRunContext run, int stepOrder, int attempt)
+        {
+            run.StepRetryCounts[stepOrder] = attempt;
+        }
+
+        /// <summary>
+        /// 标记运行失败并发出 run_failed 事件。
+        /// </summary>
+        private static async Task FailRunAsync(AgentRunContext run, int failedOrder, string error)
+        {
+            run.Status = AgentRunStatus.Failed;
+            run.FinalOutput = string.Join("\n", run.Steps.Select(d => d.Output));
+            run.SyncStateBackToRoot();
+
+            await run.EmitAsync("run_failed", new { failedOrder, error }, run.Root.CancellationToken);
+        }
+
+        /// <summary>
+        /// 将步骤执行结果写入运行期工作记忆。
+        /// </summary>
+        private static void UpdateWorkingMemoryForStep(AgentRunContext run, PlanStep step, PlanStepExecution exec)
+        {
+            var wm = WorkingMemoryHelper.GetOrCreateWorkingMemory(run);
+
+            var snap = new StepSnapshot(
+                Order: step.Order,
+                Kind: step.Kind.ToString(),
+                Target: step.Target,
+                OutputPreview: WorkingMemoryHelper.Preview(exec.Output, 600),
+                Success: exec.Status == StepExecutionStatus.Success,
+                Error: exec.Error
+            );
+
+            wm.LastStep = snap;
+            wm.Steps[step.Order] = snap;
+        }
+
+        /// <summary>
+        /// 将工具调用结果写入运行期工作记忆。
+        /// </summary>
+        private static void UpdateWorkingMemoryForTool(AgentRunContext run, int order, string toolName, string argsJson, ToolResult result)
+        {
+            var wm = WorkingMemoryHelper.GetOrCreateWorkingMemory(run);
+
+            wm.LastTool = new ToolSnapshot(
+                Order: order,
+                ToolName: toolName,
+                ArgsPreview: WorkingMemoryHelper.Preview(argsJson, 300),
+                OutputPreview: WorkingMemoryHelper.Preview(result.Output.ToString(), 600),
+                Success: result.Success,
+                ErrorCode: result.Error?.Code,
+                ErrorMessage: result.Error?.Message,
+                LatencyMs: result.Metrics?.LatencyMs ?? 0
+            );
         }
 
     }

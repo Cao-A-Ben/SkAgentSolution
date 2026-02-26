@@ -97,6 +97,14 @@ namespace SKAgent.Agents.Planning
 - mcp  : 适合调用外部系统、工具或协议
 可用Tools:
 {{$tools}}
+工具使用硬规则（必须遵守）：
+- 如果某个步骤可以通过可用Tools直接完成（如字符串处理、时间获取、计算、HTTP请求），必须优先生成 kind="tool" 的步骤。
+- kind="tool" 时：
+  - target 必须严格从 TOOLS CATALOG 的 name 中选择，禁止杜撰。
+  - argumentsJson 必须符合该工具的 input schema。
+  - argumentsJson 必须是“JSON字符串”（带引号、内部双引号要转义），不要输出嵌套对象。
+- kind="agent" 时：
+  - 仅用于解释、总结、提出澄清问题或当工具无法完成时。
 
 输出格式必须是：
 {
@@ -121,7 +129,7 @@ namespace SKAgent.Agents.Planning
 }
 
 字段规则:
-- Kind 只能是"agent"或 "tool"
+- kind 只能是"agent"或 "tool"
 - kind="agent"时, 必须有target、instruction; argumentsJson 必须为空或缺省值
 - kind="tool"时, 必须有target、argumentsJson; instruction 可为空或缺省值
 - argumentsJson必须是一个JSON字符串(注意转义)，且能反序列化为一个对象,不要输出嵌套对象
@@ -214,17 +222,73 @@ namespace SKAgent.Agents.Planning
         /// 构建可用工具目录字符串，注入 Planner prompt 的 {{$tools}} 变量。
         /// 格式：每行 "- 工具名: 描述"，无可用工具时返回 "(无)"。
         /// </summary>
+        //private string BuildToolCatalog()
+        //{
+        //    var tools = _toolRegistry.List();
+        //    if (tools.Count == 0) return "(无)";
+
+        //    var sb = new StringBuilder();
+        //    foreach (var tool in tools)
+        //    {
+        //        sb.AppendLine($"- {tool.Name}: {tool.Description}");
+        //    }
+        //    return sb.ToString();
+        //}
         private string BuildToolCatalog()
         {
             var tools = _toolRegistry.List();
             if (tools.Count == 0) return "(无)";
 
             var sb = new StringBuilder();
-            foreach (var tool in tools)
+            sb.AppendLine("TOOLS CATALOG (choose target strictly from this list):");
+
+            foreach (var t in tools)
             {
-                sb.AppendLine($"- {tool.Name}: {tool.Description}");
+                sb.AppendLine($"- name: {t.Name}");
+                sb.AppendLine($"  desc: {t.Description}");
+
+                // Input schema summary
+                var props = t.InputSchema.Properties ?? new Dictionary<string, ToolFieldSchema>();
+                var required = t.InputSchema.Required ?? Array.Empty<string>();
+
+                if (props.Count == 0)
+                {
+                    sb.AppendLine("  input: {}");
+                    sb.AppendLine("  example_argumentsJson: \"{}\"");
+                }
+                else
+                {
+                    sb.AppendLine("  input:");
+                    foreach (var kv in props)
+                    {
+                        var req = required.Contains(kv.Key) ? " (required)" : "";
+                        sb.AppendLine($"    - {kv.Key}: {kv.Value.Type}{req} // {kv.Value.Description}");
+                    }
+
+                    // Generate a simple example json string (best effort)
+                    var exampleObj = new Dictionary<string, object?>();
+                    foreach (var kv in props)
+                    {
+                        exampleObj[kv.Key] = kv.Value.Type switch
+                        {
+                            "string" => "example",
+                            "integer" => 1,
+                            "number" => 1.0,
+                            "boolean" => true,
+                            _ => null
+                        };
+                    }
+
+                    var exampleJson = JsonSerializer.Serialize(exampleObj);
+                    // 注意：argumentsJson 本身是一个 JSON 字符串，所以外层要加引号；这里输出时直接给转义后的字符串样式
+                    sb.AppendLine($"  example_argumentsJson: \"{exampleJson.Replace("\"", "\\\"")}\"");
+                }
+
+                sb.AppendLine();
             }
-            return sb.ToString();
+
+            return sb.ToString().TrimEnd();
         }
+
     }
 }
