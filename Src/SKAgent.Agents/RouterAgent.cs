@@ -4,6 +4,7 @@ using System.Text;
 using System.Linq;
 using Microsoft.Extensions.Logging;
 using SKAgent.Core.Agent;
+using SKAgent.Core.Routing;
 
 namespace SKAgent.Agents
 {
@@ -20,7 +21,7 @@ namespace SKAgent.Agents
     /// 2. 在已注册的 IAgent 字典中查找匹配项。
     /// 3. 调用目标 Agent 的 ExecuteAsync 并返回结果。
     /// </summary>
-    public class RouterAgent : IAgent
+    public class RouterAgent : IAgent,IStepRouter
     {
         /// <summary>已注册的 Agent 字典，键为 Agent.Name（忽略大小写）。</summary>
         private readonly Dictionary<string, IAgent> _agents;
@@ -41,6 +42,15 @@ namespace SKAgent.Agents
             _agents = agents.ToDictionary(agent => agent.Name, a => a, StringComparer.OrdinalIgnoreCase);
             _logger = logger;
         }
+
+        // IStepRouter：供 Application 层使用（依赖抽象，不依赖具体 RouterAgent 类型）
+        public Task<AgentResult> RouteAsync(AgentContext context, CancellationToken ct = default)
+        {
+            // 以参数 ct 覆盖 context token（可选，但推荐这样做保持一致）
+            //context.CancellationToken = ct;
+            return ExecuteAsync(context);
+        }
+
 
         /// <summary>
         /// 根据 StepContext.Target 将请求路由到目标 Agent 执行。

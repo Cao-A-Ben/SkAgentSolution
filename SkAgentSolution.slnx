@@ -25,6 +25,7 @@
     <File Path="Docs/weeks/Week5.md" />
   </Folder>
   <Folder Name="/Src/">
+    <Project Path="SKAgent.Application/SKAgent.Application.csproj" Id="397db831-d870-4a84-b0f8-bcafc8e5362a" />
     <Project Path="Src/SKAgent.Agents/SKAgent.Agents.csproj" Id="23aa8e5c-c096-4208-9d1d-8631ed77c179" />
     <Project Path="Src/SKAgent.Core/SKAgent.Core.csproj" Id="963841fb-c881-4f67-b1cd-0b59b569936d" />
     <Project Path="Src/SKAgent.Host/SKAgent.Host.csproj" Id="9fc82ff9-7331-4465-8cbe-3f9200bf405b" />

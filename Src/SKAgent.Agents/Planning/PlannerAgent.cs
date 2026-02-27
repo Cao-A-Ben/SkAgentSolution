@@ -5,11 +5,13 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using Microsoft.SemanticKernel;
 using Microsoft.SemanticKernel.Connectors.OpenAI;
-using SKAgent.Agents.Persona;
-using SKAgent.Agents.Runtime;
-using SKAgent.Agents.Tools.Abstractions;
+using SKAgent.Application.Runtime;
 using SKAgent.Core.Agent;
+using SKAgent.Core.Personas;
+using SKAgent.Core.Planning;
+using SKAgent.Core.Tools.Abstractions;
 using SKAgent.Core.Utilities;
+using static SKAgent.Core.Planning.IPlanner;
 
 namespace SKAgent.Agents.Planning
 {
@@ -25,7 +27,7 @@ namespace SKAgent.Agents.Planning
     /// - Kernel：Semantic Kernel 实例，用于调用 LLM。
     /// - PersonaOptions：人格配置，PlannerHint 影响计划拆解策略。
     /// </summary>
-    public class PlannerAgent
+    public class PlannerAgent : IPlanner
     {
         /// <summary>Semantic Kernel 实例，用于调用 LLM 生成执行计划。</summary>
         private readonly Kernel _kernel;
@@ -61,7 +63,7 @@ namespace SKAgent.Agents.Planning
         /// </summary>
         /// <param name="run">当前运行上下文，包含用户输入、Profile、RecentTurns 等信息。</param>
         /// <returns>LLM 生成的执行计划。</returns>
-        public async Task<AgentPlan> CreatPlanAsync(AgentRunContext run)
+        public async Task<AgentPlan> CreatePlanAsync(AgentRunContext run)
         {
 
             if (run.ConversationState.TryGetValue("debug_plan", out var v) && v is true)
@@ -174,6 +176,106 @@ namespace SKAgent.Agents.Planning
             return JsonSerializer.Deserialize<AgentPlan>(json, options)!;
         }
 
+        public async Task<AgentPlan> CreatePlanAsync(PlanRequest req)
+        {
+            if (req.DebugPlan)
+            {
+                return new AgentPlan
+                {
+                    Goal = "debug tools",
+                    Steps = new List<PlanStep>
+                    {
+                        new PlanStep { Order = 1, Kind = PlanStepKind.Tool, Target = "string.upper", ArgumentsJson = "{\"text\":\"hello\"}" },
+                        new PlanStep { Order = 2, Kind = PlanStepKind.Agent, Target = "chat", Instruction = "解释上一步工具输出" }
+                    }
+                };
+            }
+
+            var prompt = """
+你是一个 Agent Planner
+人格约束[必须遵守]:
+{{$hint}}
+
+你的任务是：
+- 将用户请求拆解为一组有序的执行步骤(Plan)
+- 每个步骤只能由一个Agent执行
+
+你必须严格遵守以下规则：
+- 不要使用 Markdown
+- 不要输出 ```json
+- 不要输出任何解释性文本
+
+可用Agent:
+- chat : 适合解释、问答、知识类问题
+- mcp  : 适合调用外部系统、工具或协议
+可用Tools:
+{{$tools}}
+工具使用硬规则（必须遵守）：
+- 如果某个步骤可以通过可用Tools直接完成（如字符串处理、时间获取、计算、HTTP请求），必须优先生成 kind="tool" 的步骤。
+- kind="tool" 时：
+  - target 必须严格从 TOOLS CATALOG 的 name 中选择，禁止杜撰。
+  - argumentsJson 必须符合该工具的 input schema。
+  - argumentsJson 必须是“JSON字符串”（带引号、内部双引号要转义），不要输出嵌套对象。
+- kind="agent" 时：
+  - 仅用于解释、总结、提出澄清问题或当工具无法完成时。
+
+输出格式必须是：
+{
+    "goal":"...",
+    "steps":[
+        {
+           "order":1,
+           "kind":"tool",
+           "target":"string.upper",
+           "argumentsJson": "{\"text\":\"hello\"}",
+           "expectedOutput": "HELLO"
+        },
+         {
+           "order": 2,
+           "kind": "agent",
+           "target": "chat",
+           "instruction": "解释上一步结果给用户",
+           "expectedOutput": "用户理解含义"
+         }
+        ...
+    ]
+}
+
+字段规则:
+- kind 只能是"agent"或 "tool"
+- kind="agent"时, 必须有target、instruction; argumentsJson 必须为空或缺省值
+- kind="tool"时, 必须有target、argumentsJson; instruction 可为空或缺省值
+- argumentsJson必须是一个JSON字符串(注意转义)，且能反序列化为一个对象,不要输出嵌套对象
+
+用户输入:
+{{$input}}
+""";
+
+            var plannerInput = BuildPlannerContext(req);
+
+            var settings = new OpenAIPromptExecutionSettings { Temperature = 0 };
+
+            var arguments = new KernelArguments(settings)
+            {
+                ["tools"] = BuildToolCatalog(),
+                ["hint"] = req.PlannerHint,
+                ["input"] = plannerInput
+            };
+
+            var result = await _kernel.InvokePromptAsync(prompt, arguments);
+
+            var raw = result.GetValue<string>() ?? "";
+            var json = LlmOutputParser.ExtractJson(raw);
+
+            var options = new JsonSerializerOptions
+            {
+                PropertyNameCaseInsensitive = true,
+                Converters = { new JsonStringEnumConverter(JsonNamingPolicy.CamelCase) }
+            };
+
+            return JsonSerializer.Deserialize<AgentPlan>(json, options)
+                   ?? throw new InvalidOperationException("Planner output could not be parsed into AgentPlan.");
+        }
 
         /// <summary>
         /// 构建 Planner 的输入上下文字符串，包含 Profile、最近对话记忆和当前用户输入。
@@ -217,23 +319,39 @@ namespace SKAgent.Agents.Planning
             return sb.ToString();
         }
 
+        private static string BuildPlannerContext(PlanRequest req)
+        {
+            var sb = new StringBuilder();
 
-        /// <summary>
-        /// 构建可用工具目录字符串，注入 Planner prompt 的 {{$tools}} 变量。
-        /// 格式：每行 "- 工具名: 描述"，无可用工具时返回 "(无)"。
-        /// </summary>
-        //private string BuildToolCatalog()
-        //{
-        //    var tools = _toolRegistry.List();
-        //    if (tools.Count == 0) return "(无)";
+            if (req.Profile is { Count: > 0 })
+            {
+                sb.AppendLine("[User Profile]");
+                foreach (var kv in req.Profile)
+                    sb.AppendLine($"{kv.Key}={kv.Value}");
+                sb.AppendLine();
+            }
 
-        //    var sb = new StringBuilder();
-        //    foreach (var tool in tools)
-        //    {
-        //        sb.AppendLine($"- {tool.Name}: {tool.Description}");
-        //    }
-        //    return sb.ToString();
-        //}
+            if (req.RecentTurns is { Count: > 0 })
+            {
+                sb.AppendLine("[Recent Conversation Memory]");
+                foreach (var t in req.RecentTurns)
+                {
+                    var u = (t.UserInput ?? "").Replace("\n", " ").Trim();
+                    var a = (t.AssistantOutput ?? "").Replace("\n", " ").Trim();
+                    if (a.Length > 180) a = a[..180] + "...";
+
+                    sb.AppendLine($"- User: {u}");
+                    sb.AppendLine($"  Assistant: {a}");
+                }
+                sb.AppendLine();
+            }
+
+            sb.AppendLine("[Current User Input]");
+            sb.AppendLine(req.UserInput);
+
+            return sb.ToString();
+        }
+
         private string BuildToolCatalog()
         {
             var tools = _toolRegistry.List();

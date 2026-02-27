@@ -1,6 +1,6 @@
 using Microsoft.AspNetCore.HttpLogging;
 using Scalar.AspNetCore;
-using SKAgent.Agents.Tools.Abstractions;
+using SKAgent.Core.Tools.Abstractions;
 using SKAgent.Host;
 using SKAgent.Host.Boostrap;
 

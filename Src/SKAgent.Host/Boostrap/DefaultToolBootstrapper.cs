@@ -1,7 +1,7 @@
 ﻿using System.Collections.Concurrent;
 using System.Text.Json;
-using SKAgent.Agents.Tools.Abstractions;
-using SKAgent.Agents.Tools.Adapters;
+using SKAgent.Core.Tools.Abstractions;
+using SKAgent.Infrastructure.Tools.Adapters;
 
 namespace SKAgent.Host.Boostrap
 {

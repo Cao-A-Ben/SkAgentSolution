@@ -1,9 +1,5 @@
 ﻿using Microsoft.AspNetCore.Mvc;
-using SKAgent.Agents;
-using SKAgent.Agents.Execution;
-using SKAgent.Agents.Memory;
-using SKAgent.Agents.Planning;
-using SKAgent.Agents.Runtime;
+using SKAgent.Application.Runtime;
 using SKAgent.Core.Agent;
 using SKAgent.Host.Contracts;
 

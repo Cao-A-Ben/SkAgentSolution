@@ -4,8 +4,8 @@ using System.Text;
 using Microsoft.SemanticKernel;
 using Microsoft.SemanticKernel.ChatCompletion;
 using Microsoft.SemanticKernel.Connectors.OpenAI;
-using SKAgent.Agents.Chat;
 using SKAgent.Core.Agent;
+using SKAgent.Core.Chat;
 
 namespace SKAgent.Agents
 {

@@ -8,11 +8,13 @@
 
   <ItemGroup>
     <ProjectReference Include="../SKAgent.Core/SKAgent.Core.csproj" />
+    <ProjectReference Include="..\..\SKAgent.Application\SKAgent.Application.csproj" />
     <ProjectReference Include="..\SKAgent.SemanticKernel\SKAgent.SemanticKernel.csproj" />
   </ItemGroup>
 
   <ItemGroup>
-    <Folder Include="Tools\Planning\" />
+    <Folder Include="Observability\" />
+    <Folder Include="Tools\" />
   </ItemGroup>
 
   <ItemGroup>

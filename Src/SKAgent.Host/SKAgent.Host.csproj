@@ -16,6 +16,7 @@
     <ProjectReference Include="../SKAgent.Core/SKAgent.Core.csproj" />
     <ProjectReference Include="../SKAgent.Agents/SKAgent.Agents.csproj" />
     <ProjectReference Include="../SKAgent.Infrastructure/SKAgent.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\SKAgent.Application\SKAgent.Application.csproj" />
   </ItemGroup>
 
 </Project>

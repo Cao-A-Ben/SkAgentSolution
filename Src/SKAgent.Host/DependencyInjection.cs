@@ -1,23 +1,26 @@
-﻿using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.DependencyInjection;
-using SKAgent.Agents;
-using SKAgent.Agents.Chat;
-using SKAgent.Agents.Execution;
+﻿using SKAgent.Agents;
 using SKAgent.Agents.Memory;
-using SKAgent.Agents.Observability;
-using SKAgent.Agents.Observability.Exporters;
-using SKAgent.Agents.Persona;
 using SKAgent.Agents.Planning;
-using SKAgent.Agents.Profile;
-using SKAgent.Agents.Reflection;
-using SKAgent.Agents.Runtime;
-using SKAgent.Agents.Tools.Abstractions;
-using SKAgent.Agents.Tools.Invoker;
-using SKAgent.Agents.Tools.Registry;
+using SKAgent.Application.Chat;
+using SKAgent.Application.Execution;
+using SKAgent.Application.Persona;
+using SKAgent.Application.Reflection;
+using SKAgent.Application.Runtime;
+using SKAgent.Application.Tools.Invoker;
+using SKAgent.Application.Tools.Registry;
 using SKAgent.Core.Agent;
+using SKAgent.Core.Chat;
+using SKAgent.Core.Memory;
+using SKAgent.Core.Personas;
+using SKAgent.Core.Planning;
+using SKAgent.Core.Profile;
 using SKAgent.Core.Protocols.MCP;
+using SKAgent.Core.Reflection;
+using SKAgent.Core.Routing;
+using SKAgent.Core.Tools.Abstractions;
 using SKAgent.Host.Boostrap;
 using SKAgent.Infrastructure.Mcp;
+using SKAgent.Infrastructure.Profile;
 using SKAgent.SemanticKernel;
 
 namespace SKAgent.Host
@@ -55,7 +58,12 @@ namespace SKAgent.Host
 
             // 5. 注册路由、规划、执行组件
             services.AddSingleton<RouterAgent>();
+            //services.AddSingleton<IAgent>(sp => sp.GetRequiredService<RouterAgent>());      // RouterAgent 也作为 IAgent 暴露
+            services.AddSingleton<IStepRouter>(sp => sp.GetRequiredService<RouterAgent>()); // 同一个实例暴露为 IStepRouter
+
+
             services.AddSingleton<PlannerAgent>();
+            services.AddSingleton<IPlanner>(sp => sp.GetRequiredService<PlannerAgent>());
             services.AddSingleton<PlanExecutor>();
 
             // 6. 注册短期记忆（内存版，单例，每个会话最多 20 条）

@@ -1,4 +1,4 @@
-﻿using SKAgent.Agents.Tools.Abstractions;
+﻿using SKAgent.Core.Tools.Abstractions;
 
 namespace SKAgent.Host.Boostrap
 {

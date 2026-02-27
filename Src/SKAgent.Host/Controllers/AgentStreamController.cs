@@ -1,7 +1,7 @@
 ﻿using Microsoft.AspNetCore.Mvc;
-using SKAgent.Agents.Observability.Exporters;
-using SKAgent.Agents.Runtime;
+using SKAgent.Application.Runtime;
 using SKAgent.Host.Contracts;
+using SKAgent.Infrastructure.Observability;
 
 namespace SKAgent.Host.Controllers
 {
