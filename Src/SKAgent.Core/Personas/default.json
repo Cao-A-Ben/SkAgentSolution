@@ -1,0 +1,11 @@
+{
+  "name": "default",
+  "displayName": "Default",
+  "systemPrompt": "You are a helpful assistant.",
+  "plannerHint": "Prefer step-by-step plans.",
+  "policy": {
+    "allowSwitch": true,
+    "persistSelection": true,
+    "defaultPersonaName": "default"
+  }
+}

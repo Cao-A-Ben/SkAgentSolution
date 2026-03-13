@@ -4,7 +4,10 @@ using System.Text;
 
 namespace SKAgent.Core.Memory
 {
-    internal class MemoryQuery
-    {
-    }
+    public sealed record MemoryQuery(
+      string ConversationId,
+      string Text,
+      int TopK = 8,
+      int? BudgetChars = null
+  );
 }

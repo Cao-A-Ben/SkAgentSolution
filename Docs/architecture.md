@@ -1,94 +1,85 @@
 # Architecture
-> Status: Draft (Week5)
+> Status: Updated after refactor
 >
-> This doc defines the core architectural constraints: SSOT, separation of Plan/Execution/Result, and component boundaries.
+> 本文档描述当前代码实现对应的分层边界、运行时职责和主调用路径。
 >
 > Related:
-> - docs/runtime.md
-> - docs/observability.md
-> - ADR-0001 / ADR-0003
+> - `Docs/runtime.md`
+> - `Docs/observability.md`
+> - `Docs/skills.md`
 
-本项目目标：构建一个可工程化落地的 Agent Runtime，支持：
-- 规划（Plan）与执行（Execution）解耦
-- 多 Agent 路由、工具/技能（Tool/Skill）调用
-- 可观测性（Trace / Run Event Model）
-- 反思与重试（Reflection / Retry / Repair Plan）
-- 同时支持非流式（稳定）与流式（事件流 SSE，Token 作为一种事件）
+## 1. 核心原则
 
-## 1. 核心原则（Non-negotiables）
+### 1.1 SSOT：`AgentRunContext`
+运行时事实统一写入 `SKAgent.Application.Runtime.AgentRunContext`：
+- `Plan`：规划结果
+- `Steps`：逐步执行事实
+- `ToolCalls`：工具调用轨迹
+- `ConversationState`：跨步骤共享状态（`profile`/`recent_turns`/`persona` 等）
+- `FinalOutput`/`Status`：最终结果
 
-### 1.1 Single Source of Truth（SSOT）
-运行期间的“事实状态”必须写入 `RunContext`（或等价的运行时状态容器），而不是散落在局部变量、日志或隐式约定中。
+### 1.2 Plan / Execute / Observe 分离
+- 规划：`IPlanner`（当前实现 `PlannerAgent`）
+- 执行：`PlanExecutor`
+- 观测：`IRunEventSink` + `RunEvent`
 
-- Plan 只是意图，不等于执行事实
-- Execution 产生事实，并持续写入 RunContext
-- Result 是对事实的最终汇总与投影（Response / Trace / SSE）
+### 1.3 Router 只做路由
+`RouterAgent` 只根据 `AgentContext.Target` 分发到具体 `IAgent`，不负责重试策略和状态裁决。
 
-### 1.2 Plan / Execution / Result 分离
-- Plan：由 Planner 生成步骤（Step），包含 expectedOutput 等约束
-- Execution：由 Executor 逐步执行（AgentStep / ToolStep / RetrievalStep...）
-- Result：聚合输出（finalOutput、stepOutputs、metrics、events）
+## 2. 解决方案分层（当前）
 
-### 1.3 Router 只负责路由，不负责状态
-Router 做：
-- 选择目标 Agent（基于上下文 state 或 Planner 的决策）
+- `SKAgent.Core`
+  - 纯抽象与协议：`IAgent`、`IPlanner`、`IStepRouter`、`ITool*`、`RunEvent`、Plan/Step 模型
+- `SKAgent.Application`
+  - 应用编排与用例：`AgentRuntimeService`、`PlanExecutor`、Reflection、ToolInvoker、ChatContext
+- `SKAgent.Agents`
+  - 具体 Agent 能力：`SKChatAgent`、`McpAgent`、`RouterAgent`、`PlannerAgent`
+- `SKAgent.Infrastructure`
+  - 外部实现：`McpClient`、`InMemoryUserProfileStore`、`SseRunEventSink` 等
+- `SKAgent.SemanticKernel`
+  - Semantic Kernel 组装与插件
+- `SKAgent.Host`
+  - API 宿主、DI 组装、控制器入口
 
-Router 不做：
-- 不修改 RunContext 的核心状态
-- 不承担重试、反思、工具选择等策略责任
+## 3. API 入口与运行模式
 
-## 2. 运行时主模块（Runtime Components）
+- 非流式：`POST /api/agent/run`
+  - 控制器：`AgentController`
+  - 返回：`AgentRunResponse`
 
-- API Layer
-  - 非流式：`POST /api/agent/run` -> 返回最终 `AgentRunResponse`
-  - 流式：`POST /api/agent/run/stream`（SSE）-> 返回 Run 事件流
+- 流式（SSE）：`POST /api/agentstream/run`
+  - 控制器：`AgentStreamController`
+  - `SseRunEventSink` 注入 `RunAsync(..., eventSink: sink)`
 
-- RuntimeService
-  - 协调一次 Run：初始化、规划、执行、收尾
-  - 负责 run_started/run_completed/run_failed 事件
+两种模式复用同一套 `AgentRuntimeService` 与 `PlanExecutor`，区别仅在于是否注入事件 sink。
 
-- Planner
-  - 生成 Plan（steps）
-  - 负责 plan_started/plan_created 事件
+## 4. 运行时组件职责
 
-- Executor
-  - 执行 steps，写入 RunContext（SSOT）
-  - 负责 step_started/step_completed/step_failed 事件
+- `AgentRuntimeService`
+  - 创建 `AgentRunContext`
+  - 加载 `IShortTermMemory` 与 `IUserProfileStore`
+  - 调用 `IPlanner.CreatePlanAsync`
+  - 调用 `PlanExecutor.ExecuteAsync`
+  - 写回短期记忆与画像更新
 
-- Tool System（Skills/Tools）
-  - ToolRegistry：统一注册与发现
-  - ToolInvoker：统一调用与错误封装
-  - 负责 tool_invoked/tool_completed 事件
+- `PlannerAgent`
+  - 读取 persona hint、profile、recent turns、tool catalog
+  - 输出 `AgentPlan`
 
-- Observability（Run Event Model）
-  - RunEvent：统一事件模型（Trace & SSE 共用）
-  - Exporters：Console / JSONL / SSE
+- `PlanExecutor`
+  - 逐步执行 `PlanStep`
+  - `kind=tool`：走 `IToolInvoker`
+  - `kind=agent`：走 `IStepRouter` -> 目标 `IAgent`
+  - 失败时触发 reflection/retry 决策
 
-- Reflection（反思/重试）
-  - OutputEvaluator：判断 output 是否满足 expectedOutput
-  - ReflectionAgent：给出修复策略（重试/改参/换工具/修计划）
-  - PlanRepairer：对剩余步骤进行修补
-  - 负责 reflection_triggered/retry_scheduled/plan_repaired 事件
+- `IRunEventSink`
+  - 承接 `run_started`、`plan_created`、`step_*`、`tool_*`、`reflection_*`、`run_completed|run_failed`
 
-## 3. 关键数据结构
+## 5. 关键调用链
 
-- RunContext（SSOT）
-  - runId、request、plan、stepStates、toolCalls、finalOutput、metrics
-  - eventSeq（单 run 内递增序号）
-  - 可选：eventSink（用于 emit RunEvent）
-
-- Plan
-  - steps[]：每个 Step 具有 id/kind/name/inputs/expectedOutput 等
-
-- RunEvent（统一事件）
-  - envelope：runId, ts, seq, type, payload
-  - payload 随 type 变化（见 docs/observability.md）
-
-## 4. 工程化验收（High-level Acceptance）
-
-- 非流式接口稳定返回最终结果（不依赖 SSE）
-- SSE 能稳定输出：
-  - run_started -> plan_created -> step_* -> run_completed（或 run_failed）
-  - 工具调用阶段无 token 也能发进度事件
-  - chat token 以事件形式插入（可选）
-- 所有关键策略（工具协议、事件 schema、重试策略）有 ADR 文档留痕
+1. `AgentController` / `AgentStreamController` 接收请求
+2. `AgentRuntimeService.RunAsync` 初始化上下文并发出 `run_started`
+3. `IPlanner.CreatePlanAsync` 生成计划并发出 `plan_created`
+4. `PlanExecutor.ExecuteAsync` 执行步骤并持续发出 step/tool/reflection 事件
+5. 执行完成后发出 `run_completed`（失败则 `run_failed`）
+6. Runtime 提交短期记忆与画像 patch

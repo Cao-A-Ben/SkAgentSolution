@@ -1,25 +1,35 @@
-﻿using SKAgent.Agents;
+﻿using SkAgent.Runtime.Execution;
+using SkAgent.Runtime.Planning;
+using SkAgent.Runtime.Runtime;
+using SKAgent.Agents;
 using SKAgent.Agents.Memory;
 using SKAgent.Agents.Planning;
 using SKAgent.Application.Chat;
-using SKAgent.Application.Execution;
+using SKAgent.Application.Memory;
 using SKAgent.Application.Persona;
+using SKAgent.Application.Profile;
+using SKAgent.Application.Prompt;
 using SKAgent.Application.Reflection;
 using SKAgent.Application.Runtime;
 using SKAgent.Application.Tools.Invoker;
 using SKAgent.Application.Tools.Registry;
 using SKAgent.Core.Agent;
 using SKAgent.Core.Chat;
-using SKAgent.Core.Memory;
+using SKAgent.Core.Memory.LongTerm;
+using SKAgent.Core.Memory.ShortTerm;
+using SKAgent.Core.Memory.Working;
 using SKAgent.Core.Personas;
 using SKAgent.Core.Planning;
 using SKAgent.Core.Profile;
 using SKAgent.Core.Protocols.MCP;
 using SKAgent.Core.Reflection;
 using SKAgent.Core.Routing;
+using SKAgent.Core.Runtime;
 using SKAgent.Core.Tools.Abstractions;
 using SKAgent.Host.Boostrap;
 using SKAgent.Infrastructure.Mcp;
+using SKAgent.Infrastructure.Memory.LongTerm;
+using SKAgent.Infrastructure.Memory.Working;
 using SKAgent.Infrastructure.Profile;
 using SKAgent.SemanticKernel;
 
@@ -89,7 +99,47 @@ namespace SKAgent.Host
             //11.2 注册工具引导器
             services.AddSingleton<IToolBootstrapper, DefaultToolBootstrapper>();
 
+            // 12. Week6：注册“会话人格绑定存储”（conversationId -> personaName）
+            // 持久化到本地文件，保证同一会话的人格选择可跨请求复用。
+            var storePath = Path.Combine(AppContext.BaseDirectory, "data", "conversation-persona.json");
+            services.AddSingleton<IConversationPersonaStore>(_ => new FileConversationPersonaStore(storePath));
 
+            // 13. Week6：注册“人格定义提供器”
+            // 从 personas 目录加载 JSON 定义，供 PersonaManager 按名称查询与选择。
+            var personasDir = Path.Combine(AppContext.BaseDirectory, "personas");
+            services.AddSingleton<IPersonaProvider>(_ => new FilePersonaProvider(personasDir));
+
+            // 14. Week6：人格选择编排器（request/store/default 选择链）
+            services.AddSingleton<PersonaManager>();
+
+
+            // 15. Week6：记忆分层与预算裁剪编排
+            // MemoryBudgeter：负责去重 + 字符预算裁剪
+            // MemoryOrchestrator：负责汇总 short/working/long 三层记忆
+            services.AddSingleton<MemoryBudgeter>();
+            services.AddSingleton<MemoryOrchestrator>();
+
+            // 16. Week6：长期记忆先使用 NoOp 实现（占位，后续可替换向量库）
+            services.AddSingleton<ILongTermMemory, NoOpLongTermMemory>();
+
+            // 17. Week6：工作记忆存储（当前使用内存实现）
+            services.AddSingleton<IWorkingMemoryStore, InMemoryWorkingMemoryStore>();
+
+            // 兼容注册：短期记忆内存实现（保留单例）
+            services.AddSingleton<IShortTermMemory>(_ => new InMemoryShortTermMemory(maxPerConversation: 20));
+           
+            // 18. Week6：Prompt 组合器（统一 prompt 拼装入口）
+            services.AddSingleton<PromptComposer>();
+
+            // 兼容重复注册（保持最后一次生效的配置行为）
+            services.AddSingleton<PromptComposer>();
+            //services.AddSingleton<IChatContextComposer, DefaultChatContextComposer>();
+
+            services.AddSingleton<IPlanRequestFactory, DefaultPlanRequestFactory>();
+            services.AddSingleton<IRunPreparationService, RunPreparationService>();
+            services.AddSingleton<IPlanRequestFactory, DefaultPlanRequestFactory>();
+
+            services.AddSingleton<IProfileExtractor, ProfileExtractor>();
             //services.AddSingleton<IRunEventSink, NullRunEventSink>();//默认使用 NullSink
             //services.AddScoped<IRunEventSink>(sp =>
             //{

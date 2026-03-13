@@ -32,78 +32,45 @@ SkAgentSolution/
       OrchestratorAgent.cs
       RouterAgent.cs
       SKChatAgent.cs
+      Memory/
+        InMemoryShortTermMemory.cs
+      Planning/
+        PlannerAgent.cs
+    SKAgent.Application/
       Chat/
         ChatContextComposer.cs
       Execution/
-        PlanExecutionResult.cs
         PlanExecutor.cs
         StepExecutionResult.cs
-        ToolCallRecord.cs
       Memory/
-        IMemoryStore.cs
-        IShortTermMemory.cs
-        InMemoryShortTermMemory.cs
-        MemoryQuery.cs
-        ShortTermMemoryModels.cs
+        MemoryBudgeter.cs
+        MemoryOrchestrator.cs
       Observability/
         CompositeRunEventSink.cs
-        IRunEventSink.cs
         NullRunEventSink.cs
-        RunEvent.cs
         RunEventExtensions.cs
-        Exporters/
-          JsonlRunEventSink.cs
-          SseRunEventSink.cs
       Persona/
-        IPersonaProvider.cs
-        Persona.cs
+        FileConversationPersonaStore.cs
+        FilePersonaProvider.cs
         PersonaCatalog.cs
         PersonaManager.cs
-        PersonaOptions.cs
-        PersonaPolicy.cs
-      Planning/
-        AgentPlan.cs
-        PlanStep.cs
-        PlanStepKind.cs
-        PlannerAgent.cs
-        PlannerDecision.cs
       Profile/
-        InMemoryUserProfileStore.cs
-        IUserProfileStore.cs
         ProfileExtractor.cs
-      Prompting/
-        PromptBudget.cs
+      Prompt/
         PromptComposer.cs
       Reflection/
         ErrorClassifier.cs
         HttpStatusParser.cs
-        IOutputEvaluator.cs
-        IReflectionAgent.cs
         ReflectionAgent.cs
-        ReflectionDecision.cs
+        ReflectionContextBuilder.cs
         RetryPolicy.cs
         SimpleOutputEvaluator.cs
       Runtime/
-        AgentRunContext.cs
-        AgentRunStatus.cs
         AgentRuntimeService.cs
-        PlanStepExecution.cs
-        RunWorkingMemory.cs
-        StepExecutionStatus.cs
-        WorkingMemory.cs
+        IRunPreparationService.cs
+        RunPreparationService.cs
+        WorkingMemoryAccessor.cs
       Tools/
-        Abstractions/
-          ITool.cs
-          IToolInvoker.cs
-          IToolRegistry.cs
-          ToolDescriptor.cs
-          ToolError.cs
-          ToolInvocation.cs
-          ToolParameterSchema.cs
-          ToolResult.cs
-        Adapters/
-          FunctionTool.cs
-          HttpTool.cs
         Invoker/
           ToolInvoker.cs
         Registry/
@@ -113,6 +80,47 @@ SkAgentSolution/
         AgentContext.cs
         AgentResult.cs
         IAgent.cs
+      Chat/
+        ChatContext.cs
+        IChatContextComposer.cs
+      Execution/
+        PlanExecutionResult.cs
+        StepExecutionResult.cs
+        ToolCallRecord.cs
+      Memory/
+        IMemoryStore.cs
+        MemoryBundle.cs
+        MemoryItem.cs
+        MemoryLayer.cs
+        MemoryQuery.cs
+        LongTerm/
+          ILongTermMemory.cs
+        ShortTerm/
+          IShortTermMemory.cs
+          ShortTermMemoryModels.cs
+        Working/
+          IWorkingMemoryStore.cs
+      Observability/
+        IRunEventSink.cs
+        RunEvent.cs
+      Personas/
+        default.json
+        IConversationPersonaStore.cs
+        IPersonaProvider.cs
+        Persona.cs
+        PersonaDefinition.cs
+        PersonaOptions.cs
+        PersonaPolicy.cs
+      Planning/
+        AgentPlan.cs
+        IPlanner.cs
+        PlannerDecision.cs
+        PlanStep.cs
+        PlanStepKind.cs
+      Profile/
+        IUserProfileStore.cs
+      Prompting/
+        ComposedPrompt.cs
       Protocols/
         A2A/
           A2AMessage.cs
@@ -120,8 +128,25 @@ SkAgentSolution/
         MCP/
           IMcpClient.cs
           McpMessage.cs
+      Reflection/
+        IOutputEvaluator.cs
+        IReflectionAgent.cs
+        Models.cs
+        ReflectionContext.cs
+        ReflectionDecision.cs
+      Routing/
+        IStepRouter.cs
       Tools/
         IAgentTool.cs
+        Abstractions/
+          ITool.cs
+          IToolInvoker.cs
+          IToolRegistry.cs
+          ToolDescriptor.cs
+          ToolError.cs
+          ToolInvocation.cs
+          ToolParameterSchema.cs
+          ToolResult.cs
       Utilities/
         LlmOutputParser.cs
       Class1.cs
@@ -135,16 +160,36 @@ SkAgentSolution/
       Controllers/
         AgentController.cs
         AgentStreamController.cs
+      appsettings.Development.json
+      appsettings.json
       DependencyInjection.cs
       Program.cs
     SKAgent.Infrastructure/
       A2A/
         LocalA2AChannel.cs
+      Memory/
+        LongTerm/
+          NoOpLongTermMemory.cs
+        ShortTerm/
+          InMemoryShortTermMemory.cs
+        Working/
+          InMemoryWorkingMemoryStore.cs
       Llm/
         OpenAIProvider.cs
       Mcp/
         McpClient.cs
+      Observability/
+        JsonlRunEventSink.cs
+        SseRunEventSink.cs
+      Profile/
+        InMemoryUserProfileStore.cs
+      Tools/
+        Adapters/
+          FunctionTool.cs
+          HttpTool.cs
       Class1.cs
+    SkAgent.Runtime/
+      AgentRunContext.cs
     SKAgent.SemanticKernel/
       KernelFactory.cs
       Plugins/

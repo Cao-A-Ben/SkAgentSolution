@@ -1,0 +1,14 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\SKAgent.Core\SKAgent.Core.csproj" />
+    <ProjectReference Include="..\SkAgent.Runtime\SkAgent.Runtime.csproj" />
+  </ItemGroup>
+
+</Project>

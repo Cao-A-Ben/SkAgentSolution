@@ -46,8 +46,6 @@ seq 用于前端排序/去重，也用于 trace 回放稳定性。
   - payload: error(code/message), failedStepId?, metrics
 
 ### Plan
-- plan_started
-  - payload: plannerInfo?
 - plan_created
   - payload: stepCount, stepsSummary[]（避免泄露敏感内容）
 
@@ -102,5 +100,5 @@ seq 用于前端排序/去重，也用于 trace 回放稳定性。
 
 - RuntimeService/Planner/Executor/ToolInvoker 至少能 emit：
   - run_started, plan_created, step_started, step_completed, tool_invoked, tool_completed, run_completed
-- SSE endpoint 实际可用（浏览器/前端可接收并渲染）
+- SSE endpoint 实际可用（`POST /api/agentstream/run`，浏览器/前端可接收并渲染）
 - 非流式接口不受影响（NullSink）

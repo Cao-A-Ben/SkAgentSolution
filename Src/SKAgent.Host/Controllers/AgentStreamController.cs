@@ -1,11 +1,15 @@
 ﻿using Microsoft.AspNetCore.Mvc;
-using SKAgent.Application.Runtime;
+using SkAgent.Runtime.Runtime;
 using SKAgent.Host.Contracts;
 using SKAgent.Infrastructure.Observability;
 
 namespace SKAgent.Host.Controllers
 {
 
+    /// <summary>
+    /// 流式运行控制器（SSE）。
+    /// 将运行时事件以 `text/event-stream` 形式实时推送给客户端。
+    /// </summary>
     [ApiController]
     [Route("api/[controller]")]
     public class AgentStreamController : ControllerBase
@@ -18,6 +22,9 @@ namespace SKAgent.Host.Controllers
             _runtimeService = runtimeService;
         }
 
+        /// <summary>
+        /// 执行流式 Run。
+        /// </summary>
         [HttpPost("run")]
         public async Task RunStream([FromBody] AgentRunRequest request)
         {

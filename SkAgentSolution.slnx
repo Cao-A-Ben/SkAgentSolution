@@ -6,6 +6,7 @@
     <File Path="Docs/reflection.md" />
     <File Path="Docs/runtime.md" />
     <File Path="Docs/skills.md" />
+    <File Path="Docs/solution-structure.md" />
     <File Path="README.md" />
   </Folder>
   <Folder Name="/Docs/adr/">
@@ -25,11 +26,12 @@
     <File Path="Docs/weeks/Week5.md" />
   </Folder>
   <Folder Name="/Src/">
-    <Project Path="SKAgent.Application/SKAgent.Application.csproj" Id="397db831-d870-4a84-b0f8-bcafc8e5362a" />
     <Project Path="Src/SKAgent.Agents/SKAgent.Agents.csproj" Id="23aa8e5c-c096-4208-9d1d-8631ed77c179" />
+    <Project Path="Src/SKAgent.Application/SKAgent.Application.csproj" />
     <Project Path="Src/SKAgent.Core/SKAgent.Core.csproj" Id="963841fb-c881-4f67-b1cd-0b59b569936d" />
     <Project Path="Src/SKAgent.Host/SKAgent.Host.csproj" Id="9fc82ff9-7331-4465-8cbe-3f9200bf405b" />
     <Project Path="Src/SKAgent.Infrastructure/SKAgent.Infrastructure.csproj" Id="e4bfcf70-1565-408d-843a-85325c0eb2fa" />
+    <Project Path="Src/SkAgent.Runtime/SkAgent.Runtime.csproj" Id="52f9ec99-08e3-45b9-9823-e6d46762422c" />
     <Project Path="Src/SKAgent.SemanticKernel/SKAgent.SemanticKernel.csproj" />
   </Folder>
 </Solution>

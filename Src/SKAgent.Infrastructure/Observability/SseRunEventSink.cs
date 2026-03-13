@@ -22,7 +22,7 @@ namespace SKAgent.Infrastructure.Observability
             _response.Headers.Add("Connection", "keep-alive");
         }
 
-        public async ValueTask EmitAsync(RunEvent evt, CancellationToken ct)
+        public async ValueTask WriteAsync(RunEvent evt, CancellationToken ct)
         {
             // SSE 写入必须串行
 

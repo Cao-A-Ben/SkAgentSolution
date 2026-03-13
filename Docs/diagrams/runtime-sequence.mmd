@@ -1,19 +1,22 @@
 sequenceDiagram
     autonumber
     participant Client
-    participant API
+    participant API as AgentController/AgentStreamController
     participant Runtime as RuntimeService
     participant Planner
     participant Exec as Executor
+    participant Router
+    participant Agent as IAgent
     participant Tools as ToolInvoker
     participant Reflect as Reflection
 
-    Client->>API: POST /api/agent/run (non-stream)
-    API->>Runtime: RunAsync(request, NullSink)
+    Client->>API: POST /api/agent/run or /api/agentstream/run
+    API->>Runtime: RunAsync(conversationId, input, eventSink?)
     Runtime-->>Runtime: emit run_started
-    Runtime->>Planner: CreatePlan(ctx)
-    Planner-->>Runtime: emit plan_created
-    Runtime->>Exec: Execute(plan, ctx)
+    Runtime->>Planner: CreatePlan(planRequest)
+    Planner-->>Runtime: AgentPlan
+    Runtime-->>Runtime: emit plan_created
+    Runtime->>Exec: Execute(run)
 
     loop steps
         Exec-->>Runtime: emit step_started
@@ -22,17 +25,19 @@ sequenceDiagram
             Tools-->>Exec: ToolResult
             Tools-->>Runtime: emit tool_invoked/tool_completed
         else agent_step
-            Exec-->>Runtime: emit chat_delta (optional)
+            Exec->>Router: Route(stepContext)
+            Router->>Agent: ExecuteAsync(context)
+            Agent-->>Exec: AgentResult
         end
         Exec-->>Runtime: emit step_completed/step_failed
         opt reflection trigger
             Exec->>Reflect: Reflect(ctx, step)
-            Reflect-->>Runtime: emit reflection_triggered/retry_scheduled
+            Reflect-->>Runtime: emit reflection_triggered/retry_scheduled or retry_skipped
         end
     end
 
-    Runtime-->>Runtime: emit run_completed
+    Exec-->>Runtime: emit run_completed or run_failed
     Runtime-->>API: AgentRunResponse(final)
-    API-->>Client: 200 OK (final JSON)
+    API-->>Client: 200 OK (JSON 或 SSE event stream)
 
-    Note over Client,API: Stream mode: POST /api/agent/run/stream injects SseSink<br/>and events are flushed as SSE.
+    Note over Client,API: Stream mode uses POST /api/agentstream/run and injects SseRunEventSink.

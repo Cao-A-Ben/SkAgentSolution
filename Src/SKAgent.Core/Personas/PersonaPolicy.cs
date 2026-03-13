@@ -10,4 +10,11 @@ public sealed class PersonaPolicy
     public bool PersistSelection { get; init; } = true;
 
     public string? DefaultPersonaName { get; init; }
+
+
+
+    // Week6-2/7 之后再加
+    public MemoryPolicy? Memory { get; init; }
+    public ToolPolicy? Tools { get; init; }
+    public StylePolicy? Style { get; init; }
 }

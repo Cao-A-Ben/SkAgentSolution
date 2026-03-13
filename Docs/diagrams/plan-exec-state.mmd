@@ -9,9 +9,8 @@ stateDiagram-v2
     Executing --> StepFailed: step_failed
     StepFailed --> Reflecting: reflection_triggered
     Reflecting --> Retrying: retry_scheduled
+    Reflecting --> Failed: retry_skipped
     Retrying --> Executing: step_started
-    Reflecting --> Replanned: plan_repaired
-    Replanned --> Executing: step_started
     StepDone --> Executing: next step
     StepDone --> Completed: run_completed
     StepFailed --> Failed: run_failed

@@ -2,7 +2,6 @@
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Text;
-using SKAgent.Core.Memory;
 using SKAgent.Core.Memory.ShortTerm;
 
 namespace SKAgent.Agents.Memory

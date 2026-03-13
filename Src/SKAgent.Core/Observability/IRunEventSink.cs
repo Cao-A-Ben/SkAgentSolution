@@ -15,6 +15,6 @@ namespace SKAgent.Core.Observability
         /// <param name="evt">事件实体。</param>
         /// <param name="ct">取消令牌。</param>
         /// <returns>异步任务。</returns>
-        ValueTask EmitAsync(RunEvent evt, CancellationToken ct);
+        ValueTask WriteAsync(RunEvent evt, CancellationToken ct=default);
     }
 }
