@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Diagnostics.CodeAnalysis;
 using System.Text;
 using SkAgent.Core.Prompt;
 using SKAgent.Application.Prompt;
@@ -11,7 +10,6 @@ using SKAgent.Core.Memory;
 using SKAgent.Core.Memory.ShortTerm;
 using SKAgent.Core.Personas;
 using SKAgent.Core.Runtime;
-using SKAgent.Runtime;
 
 //它是“prompt 组装/上下文编排”的用例层逻辑，会依赖 persona/memory policy（Week6），不应该属于具体 agent。
 namespace SKAgent.Application.Chat
@@ -54,8 +52,8 @@ namespace SKAgent.Application.Chat
         {
 
             // 0) 取 run（W6-3 的桥接关键）
-            if (!stepContext.State.TryGetValue("run", out var ro) || ro is not AgentRunContext run)
-                throw new InvalidOperationException("Missing AgentRunContext in stepContext.State (key=run).");
+            if (!stepContext.State.TryGetValue("run", out var ro) || ro is not IRunContext run)
+                throw new InvalidOperationException("Missing IRunContext in stepContext.State (key=run).");
 
             // 1) persona：从 state 取（W6-1 已写入 ConversationState 并复制到 stepContext）
             if (!stepContext.State.TryGetValue("persona", out var po) || po is not PersonaOptions persona)

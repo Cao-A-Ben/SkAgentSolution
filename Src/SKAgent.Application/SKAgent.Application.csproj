@@ -8,7 +8,6 @@
 
   <ItemGroup>
     <ProjectReference Include="..\SKAgent.Core\SKAgent.Core.csproj" />
-    <ProjectReference Include="..\SkAgent.Runtime\SkAgent.Runtime.csproj" />
   </ItemGroup>
 
 </Project>

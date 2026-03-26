@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Text;
 using SKAgent.Core.Observability;
 
-namespace SKAgent.Application.Observability
+namespace SKAgent.Runtime.Observability
 {
     public sealed class NullRunEventSink : IRunEventSink
     {

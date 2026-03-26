@@ -1,11 +1,11 @@
 # Skills / Tools
-> Status: Draft (Week5-1)
+> Status: Legacy Spec (kept for tool protocol baseline)
 >
 > Unifies tool registration/discovery/invocation so the Planner can choose tools and Executor can execute them deterministically.
 >
 > Related:
 > - ADR-0002
-> - docs/observability.md (tool events)
+> - Docs/observability.md (tool events)
 
 目标：统一 Tool/Skill 的“注册-发现-选择-调用-观测”协议，使 Planner 能选择工具，Executor 能稳定执行并产生可观测事件。
 

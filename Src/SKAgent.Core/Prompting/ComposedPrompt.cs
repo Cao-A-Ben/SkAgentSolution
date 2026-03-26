@@ -10,7 +10,9 @@ public enum PromptTarget
 {
     Planner = 1,
     Chat = 2,
-    Reflection = 3
+    Reflection = 3,
+    Daily = 4,
+    Voice = 5
 }
 
 /// <summary>

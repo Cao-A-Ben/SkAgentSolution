@@ -7,6 +7,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\SKAgent.Application\SKAgent.Application.csproj" />
     <ProjectReference Include="..\SKAgent.Core\SKAgent.Core.csproj" />
   </ItemGroup>
 

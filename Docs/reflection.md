@@ -1,11 +1,11 @@
 # Reflection (反思 / 重试 / 修计划)
-> Status: Draft (Week5-3)
+> Status: Legacy Spec (kept for reflection policy baseline)
 >
 > Defines triggers, retry limits, and plan repair rules.
 >
 > Related:
 > - ADR-0004
-> - docs/observability.md (reflection events)
+> - Docs/observability.md (reflection events)
 
 目标：当 step 失败或 output 不满足 expectedOutput 时，触发反思并执行有限次重试或修复计划，使系统具备“自我纠错”的工程闭环。
 

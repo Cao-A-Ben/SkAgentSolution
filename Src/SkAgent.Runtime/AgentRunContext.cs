@@ -3,13 +3,13 @@ using System.Collections.Generic;
 using System.Text;
 using System.Text.Json;
 using SkAgent.Runtime.Execution;
-using SKAgent.Application.Observability;
 using SKAgent.Core.Agent;
 using SKAgent.Core.Execution;
 using SKAgent.Core.Memory.ShortTerm;
 using SKAgent.Core.Observability;
 using SKAgent.Core.Planning;
 using SKAgent.Core.Runtime;
+using SKAgent.Runtime.Observability;
 
 namespace SKAgent.Runtime
 {

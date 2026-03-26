@@ -4,7 +4,9 @@ using SKAgent.Application.Memory;
 using SKAgent.Application.Persona;
 using SKAgent.Application.Prompt;
 using SKAgent.Core.Memory.ShortTerm;
+using SKAgent.Core.Modeling;
 using SKAgent.Core.Personas;
+using SKAgent.Core.Retrieval;
 using SKAgent.Core.Runtime;
 
 namespace SKAgent.Application.Runtime;
@@ -12,17 +14,23 @@ namespace SKAgent.Application.Runtime;
 public sealed class RunPreparationService : IRunPreparationService
 {
     private readonly PersonaManager _personaManager;
+    private readonly IIntentRouter _intentRouter;
     private readonly MemoryOrchestrator _memoryOrchestrator;
     private readonly PromptComposer _promptComposer;
+    private readonly IModelRouter _modelRouter;
 
     public RunPreparationService(
         PersonaManager personaManager,
+        IIntentRouter intentRouter,
         MemoryOrchestrator memoryOrchestrator,
-        PromptComposer promptComposer)
+        PromptComposer promptComposer,
+        IModelRouter modelRouter)
     {
         _personaManager = personaManager;
+        _intentRouter = intentRouter;
         _memoryOrchestrator = memoryOrchestrator;
         _promptComposer = promptComposer;
+        _modelRouter = modelRouter;
     }
 
     public async Task PrepareAsync(IRunContext run, CancellationToken ct)
@@ -51,11 +59,39 @@ public sealed class RunPreparationService : IRunPreparationService
             }, ct);
         }
 
-        // 2) memoryBundle：若已存在则跳过
+        // 2) Intent Router（在 Planner 之前）
+        if (!run.ConversationState.ContainsKey("retrieval_plan"))
+        {
+            var profile = run.ConversationState.TryGetValue("profile", out var p)
+                ? p as IReadOnlyDictionary<string, string>
+                : null;
+
+            var routing = await _intentRouter.RouteAsync(run.UserInput, profile, ct);
+            run.ConversationState["retrieval_intents"] = routing.Intents;
+            run.ConversationState["retrieval_plan"] = routing.Plan;
+
+            await run.EmitAsync("intent_classified", new
+            {
+                intents = routing.Intents.ToString().Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries),
+                confidence = routing.Confidence,
+                signals = routing.Signals
+            }, ct);
+
+            await run.EmitAsync("retrieval_plan_built", new
+            {
+                routes = routing.Plan.Routes.Select(r => r.ToString().ToLowerInvariant()),
+                budgets = routing.Plan.Budgets.ToDictionary(k => k.Key.ToString().ToLowerInvariant(), v => v.Value),
+                topK = routing.Plan.TopK.ToDictionary(k => k.Key.ToString().ToLowerInvariant(), v => v.Value),
+                rewriteUsed = routing.Plan.RewriteQuery,
+                needClarification = routing.Plan.NeedClarification,
+                safetyPolicy = routing.Plan.SafetyPolicy,
+                rationale = routing.Plan.Rationale
+            }, ct);
+        }
+
+        // 3) memoryBundle：若已存在则跳过
         if (!run.ConversationState.ContainsKey("memoryBundle"))
         {
-            // 你的 MemoryOrchestrator 目前是 BuildAsync(AgentRunContext run, ...) 版本的话，
-            // 请把它签名改成 BuildAsync(IRunContext run, ...)（只用到 RunId/ConversationId/EmitAsync/ConversationState）。
             var bundle = await _memoryOrchestrator.BuildAsync(run, persona, run.UserInput, ct);
             run.ConversationState["memoryBundle"] = bundle;
         }
@@ -77,6 +113,22 @@ public sealed class RunPreparationService : IRunPreparationService
         var finalTask = target == PromptTarget.Planner
             ? BuildPlannerTask(run, task)
             : task;
+
+        var purpose = target switch
+        {
+            PromptTarget.Planner => ModelPurpose.Planner,
+            PromptTarget.Chat => ModelPurpose.Chat,
+            _ => ModelPurpose.Chat
+        };
+
+        var selected = _modelRouter.Select(purpose);
+        await run.EmitAsync("model_selected", new
+        {
+            purpose = selected.Purpose.ToString().ToLowerInvariant(),
+            provider = selected.Provider,
+            model = selected.Model,
+            reason = selected.Reason
+        }, ct);
 
         var composed = await _promptComposer.ComposeAsync(
             run, persona, bundle, target, finalTask, charBudget, ct);

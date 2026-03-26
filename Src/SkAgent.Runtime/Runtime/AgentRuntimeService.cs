@@ -3,8 +3,10 @@ using System.Collections.Generic;
 using System.Text;
 using SkAgent.Core.Prompt;
 using SkAgent.Runtime.Execution;
+using SKAgent.Application.Memory;
 using SKAgent.Core.Agent;
 using SKAgent.Core.Memory;
+using SKAgent.Core.Memory.Facts;
 using SKAgent.Core.Memory.ShortTerm;
 using SKAgent.Core.Observability;
 using SKAgent.Core.Personas;
@@ -44,6 +46,8 @@ namespace SkAgent.Runtime.Runtime
         /// <summary>用户画像存储接口。</summary>
         private readonly IUserProfileStore _profileStore;
         private readonly IProfileExtractor _profileExtractor;
+        private readonly IFactStore _factStore;
+        private readonly LongTermMemoryService _longTermMemoryService;
         /// <summary> 已决策快照 </summary>
         private readonly IRunPreparationService _prep;
 
@@ -63,6 +67,8 @@ namespace SkAgent.Runtime.Runtime
             PlanExecutor executor,
             IUserProfileStore profileStore,
             IProfileExtractor profileExtractor,
+            IFactStore factStore,
+            LongTermMemoryService longTermMemoryService,
             IRunPreparationService prep,
             IPlanRequestFactory planRequestFactory)
         {
@@ -71,6 +77,8 @@ namespace SkAgent.Runtime.Runtime
             _executor = executor ?? throw new ArgumentNullException(nameof(executor));
             this._profileStore = profileStore;
             this._profileExtractor = profileExtractor;
+            this._factStore = factStore;
+            this._longTermMemoryService = longTermMemoryService;
             //this.persona = persona;
 
             this._prep = prep;
@@ -154,6 +162,8 @@ namespace SkAgent.Runtime.Runtime
 
             // 8. 调用 PlanExecutor 逐步执行计划
             await _executor.ExecuteAsync(run);
+            run.ConversationState["run_status"] = run.Status.ToString();
+            run.ConversationState["final_output"] = run.FinalOutput ?? string.Empty;
 
             // 9. 将本轮对话记录写入短期记忆
             await CommitShortTermMemoryAsync(run);
@@ -164,11 +174,55 @@ namespace SkAgent.Runtime.Runtime
             {
                 // 10.1 将提取的字段写入画像存储
                 await _profileStore.UpsertAsync(conversationId, patch, ct);
+                await run.EmitAsync("profile_updated", new
+                {
+                    keys = patch.Keys,
+                    count = patch.Count
+                }, ct);
+
+                foreach (var kv in patch)
+                {
+                    var decision = await _factStore.UpsertAsync(conversationId, new FactRecord(
+                        Key: kv.Key,
+                        Value: kv.Value,
+                        Confidence: 0.8,
+                        Source: "profile_extractor",
+                        Ts: DateTimeOffset.UtcNow,
+                        Tags: ["profile"]), ct);
+
+                    if (decision.Action == FactConflictAction.Upserted)
+                    {
+                        await run.EmitAsync("fact_upserted", new
+                        {
+                            key = kv.Key,
+                            source = "profile_extractor"
+                        }, ct);
+                    }
+                    else
+                    {
+                        await run.EmitAsync("fact_conflict", new
+                        {
+                            key = kv.Key,
+                            action = decision.Action.ToString().ToLowerInvariant(),
+                            reason = decision.Reason
+                        }, ct);
+                    }
+                }
 
                 // 10.2 重新加载完整画像并同步到 ConversationState，供 Response 返回 profileSnapshot
                 var merged = await _profileStore.GetAsync(conversationId, ct);
                 run.ConversationState["profile"] = merged;
             }
+            else
+            {
+                await run.EmitAsync("profile_update_skipped", new
+                {
+                    reason = "empty_patch"
+                }, ct);
+            }
+
+            // 11. run_completed 后写入长期记忆（chunk -> dedupe -> upsert）
+            await _longTermMemoryService.PersistRunAsync(run, ct);
 
             //结束
             //await run.EmitAsync("run_completed", new { finalOutput = run.FinalOutput }, run.Root.CancellationToken);

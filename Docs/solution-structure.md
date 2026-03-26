@@ -1,197 +1,29 @@
-# 解决方案结构
+# 解决方案结构（Week7）
 
-```
-SkAgentSolution/
-  Docs/
-    Architecture - 解决方案架构与调用流程.md
-    architecture.md
-    observability.md
-    reflection.md
-    runtime.md
-    skills.md
-    solution-structure.md
-    adr/
-      0001-ssot-runcontext.md
-      0002-tool-skill-protocol.md
-      0003-tracing-schema.md
-      0004-reflection-retry-policy.md
-    diagrams/
-      plan-exec-state.mmd
-      runtime-sequence.mmd
-      README.md
-    weeks/
-      Week4 - 最小陪伴体（Persona + Profile + 会话级 API）.md
-      Week4_plan.md
-      Week5.md
-  Src/
-    SKAgent.Agents/
-      AssistantAgent.cs
-      CodingAgent.cs
-      HealthAgent.cs
-      McpAgent.cs
-      OrchestratorAgent.cs
-      RouterAgent.cs
-      SKChatAgent.cs
-      Memory/
-        InMemoryShortTermMemory.cs
-      Planning/
-        PlannerAgent.cs
-    SKAgent.Application/
-      Chat/
-        ChatContextComposer.cs
-      Execution/
-        PlanExecutor.cs
-        StepExecutionResult.cs
-      Memory/
-        MemoryBudgeter.cs
-        MemoryOrchestrator.cs
-      Observability/
-        CompositeRunEventSink.cs
-        NullRunEventSink.cs
-        RunEventExtensions.cs
-      Persona/
-        FileConversationPersonaStore.cs
-        FilePersonaProvider.cs
-        PersonaCatalog.cs
-        PersonaManager.cs
-      Profile/
-        ProfileExtractor.cs
-      Prompt/
-        PromptComposer.cs
-      Reflection/
-        ErrorClassifier.cs
-        HttpStatusParser.cs
-        ReflectionAgent.cs
-        ReflectionContextBuilder.cs
-        RetryPolicy.cs
-        SimpleOutputEvaluator.cs
-      Runtime/
-        AgentRuntimeService.cs
-        IRunPreparationService.cs
-        RunPreparationService.cs
-        WorkingMemoryAccessor.cs
-      Tools/
-        Invoker/
-          ToolInvoker.cs
-        Registry/
-          ToolRegistry.cs
-    SKAgent.Core/
-      Agent/
-        AgentContext.cs
-        AgentResult.cs
-        IAgent.cs
-      Chat/
-        ChatContext.cs
-        IChatContextComposer.cs
-      Execution/
-        PlanExecutionResult.cs
-        StepExecutionResult.cs
-        ToolCallRecord.cs
-      Memory/
-        IMemoryStore.cs
-        MemoryBundle.cs
-        MemoryItem.cs
-        MemoryLayer.cs
-        MemoryQuery.cs
-        LongTerm/
-          ILongTermMemory.cs
-        ShortTerm/
-          IShortTermMemory.cs
-          ShortTermMemoryModels.cs
-        Working/
-          IWorkingMemoryStore.cs
-      Observability/
-        IRunEventSink.cs
-        RunEvent.cs
-      Personas/
-        default.json
-        IConversationPersonaStore.cs
-        IPersonaProvider.cs
-        Persona.cs
-        PersonaDefinition.cs
-        PersonaOptions.cs
-        PersonaPolicy.cs
-      Planning/
-        AgentPlan.cs
-        IPlanner.cs
-        PlannerDecision.cs
-        PlanStep.cs
-        PlanStepKind.cs
-      Profile/
-        IUserProfileStore.cs
-      Prompting/
-        ComposedPrompt.cs
-      Protocols/
-        A2A/
-          A2AMessage.cs
-          IA2AChannel.cs
-        MCP/
-          IMcpClient.cs
-          McpMessage.cs
-      Reflection/
-        IOutputEvaluator.cs
-        IReflectionAgent.cs
-        Models.cs
-        ReflectionContext.cs
-        ReflectionDecision.cs
-      Routing/
-        IStepRouter.cs
-      Tools/
-        IAgentTool.cs
-        Abstractions/
-          ITool.cs
-          IToolInvoker.cs
-          IToolRegistry.cs
-          ToolDescriptor.cs
-          ToolError.cs
-          ToolInvocation.cs
-          ToolParameterSchema.cs
-          ToolResult.cs
-      Utilities/
-        LlmOutputParser.cs
-      Class1.cs
-    SKAgent.Host/
-      Boostrap/
-        DefaultToolBootstrapper.cs
-        IToolBootstrapper.cs
-      Contracts/
-        AgentRunRequest.cs
-        AgentRunResponse.cs
-      Controllers/
-        AgentController.cs
-        AgentStreamController.cs
-      appsettings.Development.json
-      appsettings.json
-      DependencyInjection.cs
-      Program.cs
-    SKAgent.Infrastructure/
-      A2A/
-        LocalA2AChannel.cs
-      Memory/
-        LongTerm/
-          NoOpLongTermMemory.cs
-        ShortTerm/
-          InMemoryShortTermMemory.cs
-        Working/
-          InMemoryWorkingMemoryStore.cs
-      Llm/
-        OpenAIProvider.cs
-      Mcp/
-        McpClient.cs
-      Observability/
-        JsonlRunEventSink.cs
-        SseRunEventSink.cs
-      Profile/
-        InMemoryUserProfileStore.cs
-      Tools/
-        Adapters/
-          FunctionTool.cs
-          HttpTool.cs
-      Class1.cs
-    SkAgent.Runtime/
-      AgentRunContext.cs
-    SKAgent.SemanticKernel/
-      KernelFactory.cs
-      Plugins/
-        TimePlugin.cs
+## 目录约束
+- `Src/SKAgent.Core`：只放抽象、契约、纯模型。
+- `Src/SKAgent.Application`：编排与策略，不直接依赖 Host。
+- `Src/SkAgent.Runtime`：运行时执行引擎与 SSOT。
+- `Src/SKAgent.Infrastructure`：外部依赖适配（DB/MCP/SSE）。
+- `Src/SKAgent.Host`：HTTP 接口与依赖注入。
+- `Tests/SKAgent.Tests`：契约/融合/集成测试。
+
+## Week7 新增关键模块
+- `Core/Retrieval/*`：Intent、Plan、Fusion 契约。
+- `Core/Memory/Facts/*`：Facts 双轨契约。
+- `Application/Retrieval/*`：IntentRouter、QueryRewriter、RetrievalFusion。
+- `Infrastructure/Memory/LongTerm/PgLongTermMemory.cs`：长期记忆读写实现。
+- `Infrastructure/Memory/Facts/InMemoryFactStore.cs`：FactStore 默认实现。
+- `Docs/sql/20260326_week7_pgvector.sql`：pgvector 脚本。
+
+## 被移除的冲突项
+- 重复 `InMemoryShortTermMemory`（仅保留 Infrastructure 实现）。
+- 重复 `RunPreparation/RuntimePreparation`（仅保留 Core `RuntimePreparation`）。
+- 错误命名空间 `IMemoryStore`（已删除）。
+- Runtime Observability 错位命名空间（已归位）。
+
+## 维护建议
+使用以下命令生成结构快照并更新本文档：
+```bash
+rg --files Src Tests | sort
 ```

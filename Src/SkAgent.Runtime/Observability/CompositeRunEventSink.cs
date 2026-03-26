@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Text;
 using SKAgent.Core.Observability;
 
-namespace SKAgent.Application.Observability
+namespace SKAgent.Runtime.Observability
 {
     /// <summary>
     /// 组合事件接收器，将事件顺序转发到多个下游 Sink。
