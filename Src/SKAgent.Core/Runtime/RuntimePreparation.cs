@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Text;
 using SkAgent.Core.Prompt;
@@ -11,6 +11,7 @@ namespace SKAgent.Core.Runtime
     {
         public PersonaOptions Persona { get; set; } = default!;
         public MemoryBundle Memory { get; set; } = new(
+            Array.Empty<MemoryItem>(),
             Array.Empty<MemoryItem>(),
             Array.Empty<MemoryItem>(),
             Array.Empty<MemoryItem>());

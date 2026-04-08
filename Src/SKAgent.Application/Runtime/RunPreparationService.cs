@@ -1,4 +1,4 @@
-﻿using System.Text;
+using System.Text;
 using SkAgent.Core.Prompt;
 using SKAgent.Application.Memory;
 using SKAgent.Application.Persona;
@@ -35,7 +35,6 @@ public sealed class RunPreparationService : IRunPreparationService
 
     public async Task PrepareAsync(IRunContext run, CancellationToken ct)
     {
-        // 1) persona：若已存在则跳过（避免重复事件）
         PersonaOptions persona;
         if (run.ConversationState.TryGetValue("persona", out var po) && po is PersonaOptions p)
         {
@@ -43,7 +42,6 @@ public sealed class RunPreparationService : IRunPreparationService
         }
         else
         {
-            // requestedPersonaName 先按 null（后续接 selector）
             var sel = _personaManager.GetOrSelect(run.RunId, run.ConversationId, requestedPersonaName: null);
 
             persona = sel.Persona;
@@ -59,11 +57,10 @@ public sealed class RunPreparationService : IRunPreparationService
             }, ct);
         }
 
-        // 2) Intent Router（在 Planner 之前）
         if (!run.ConversationState.ContainsKey("retrieval_plan"))
         {
-            var profile = run.ConversationState.TryGetValue("profile", out var p)
-                ? p as IReadOnlyDictionary<string, string>
+            var profile = run.ConversationState.TryGetValue("profile", out var profileObj)
+                ? profileObj as IReadOnlyDictionary<string, string>
                 : null;
 
             var routing = await _intentRouter.RouteAsync(run.UserInput, profile, ct);
@@ -79,9 +76,9 @@ public sealed class RunPreparationService : IRunPreparationService
 
             await run.EmitAsync("retrieval_plan_built", new
             {
-                routes = routing.Plan.Routes.Select(r => r.ToString().ToLowerInvariant()),
-                budgets = routing.Plan.Budgets.ToDictionary(k => k.Key.ToString().ToLowerInvariant(), v => v.Value),
-                topK = routing.Plan.TopK.ToDictionary(k => k.Key.ToString().ToLowerInvariant(), v => v.Value),
+                routes = routing.Plan.Routes.Select(ToRouteKey),
+                budgets = routing.Plan.Budgets.ToDictionary(k => ToRouteKey(k.Key), v => v.Value),
+                topK = routing.Plan.TopK.ToDictionary(k => ToRouteKey(k.Key), v => v.Value),
                 rewriteUsed = routing.Plan.RewriteQuery,
                 needClarification = routing.Plan.NeedClarification,
                 safetyPolicy = routing.Plan.SafetyPolicy,
@@ -89,7 +86,6 @@ public sealed class RunPreparationService : IRunPreparationService
             }, ct);
         }
 
-        // 3) memoryBundle：若已存在则跳过
         if (!run.ConversationState.ContainsKey("memoryBundle"))
         {
             var bundle = await _memoryOrchestrator.BuildAsync(run, persona, run.UserInput, ct);
@@ -99,17 +95,12 @@ public sealed class RunPreparationService : IRunPreparationService
 
     public async Task<ComposedPrompt> GetPromptAsync(IRunContext run, PromptTarget target, string task, int charBudget, CancellationToken ct)
     {
-        // 必须先 PrepareAsync
         if (!run.ConversationState.TryGetValue("persona", out var po) || po is not PersonaOptions persona)
             throw new InvalidOperationException("Missing persona. Call PrepareAsync first.");
 
         if (!run.ConversationState.TryGetValue("memoryBundle", out var mb) || mb is not SKAgent.Core.Memory.MemoryBundle bundle)
             throw new InvalidOperationException("Missing memoryBundle. Call PrepareAsync first.");
 
-        // PromptComposer 同理建议改签名 Compose(IRunContext run, ...)（产品级解耦）
-        //var composed = _promptComposer.Compose(run, persona, bundle, target, task, charBudget, ct);
-
-        // —— 产品级：Planner 的 task 不是 raw user input，而是“结构化上下文 + 当前输入”
         var finalTask = target == PromptTarget.Planner
             ? BuildPlannerTask(run, task)
             : task;
@@ -133,7 +124,6 @@ public sealed class RunPreparationService : IRunPreparationService
         var composed = await _promptComposer.ComposeAsync(
             run, persona, bundle, target, finalTask, charBudget, ct);
 
-        // —— 产品级：给 Planner 的输入落一个 SSOT 字段，供 PlanRequestFactory 使用
         if (target == PromptTarget.Planner)
             run.ConversationState["planner_input"] = composed.User;
 
@@ -144,7 +134,6 @@ public sealed class RunPreparationService : IRunPreparationService
     {
         var sb = new StringBuilder();
 
-        // 1) profile
         if (run.ConversationState.TryGetValue("profile", out var p)
             && p is IReadOnlyDictionary<string, string> profile
             && profile.Count > 0)
@@ -155,7 +144,6 @@ public sealed class RunPreparationService : IRunPreparationService
             sb.AppendLine();
         }
 
-        // 2) recent turns（优先从 state）
         if (run.ConversationState.TryGetValue("recent_turns", out var r)
             && r is IReadOnlyList<TurnRecord> recent
             && recent.Count > 0)
@@ -178,4 +166,17 @@ public sealed class RunPreparationService : IRunPreparationService
 
         return sb.ToString();
     }
+
+    private static string ToRouteKey(RetrievalRoute route) => route switch
+    {
+        RetrievalRoute.RecentHistory => "recent_history",
+        RetrievalRoute.ShortTerm => "shortterm",
+        RetrievalRoute.Working => "working",
+        RetrievalRoute.Facts => "facts",
+        RetrievalRoute.Profile => "profile",
+        RetrievalRoute.Vector => "vector",
+        RetrievalRoute.Tool => "tool",
+        RetrievalRoute.Web => "web",
+        _ => route.ToString().ToLowerInvariant()
+    };
 }

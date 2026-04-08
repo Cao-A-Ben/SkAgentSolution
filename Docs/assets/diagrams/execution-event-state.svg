@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1180" height="500" viewBox="0 0 1180 500" role="img" aria-label="Execution and event state">
+  <rect width="1180" height="500" fill="#f8fafc"/>
+  <text x="40" y="52" font-family="Segoe UI, Arial, sans-serif" font-size="30" font-weight="700" fill="#0f172a">Execution And Event State</text>
+  <text x="40" y="80" font-family="Segoe UI, Arial, sans-serif" font-size="14" fill="#475569">Primary runtime states and the events each stage emits</text>
+  <g font-family="Segoe UI, Arial, sans-serif">
+    <rect x="70" y="180" width="130" height="64" rx="16" fill="#dbeafe" stroke="#60a5fa"/>
+    <text x="111" y="218" font-size="20" fill="#111827">Created</text>
+    <text x="85" y="266" font-size="13" fill="#475569">run_started</text>
+    <rect x="260" y="180" width="150" height="64" rx="16" fill="#ecfccb" stroke="#84cc16"/>
+    <text x="293" y="218" font-size="20" fill="#111827">Preparing</text>
+    <text x="280" y="266" font-size="13" fill="#475569">intent_classified</text>
+    <text x="268" y="286" font-size="13" fill="#475569">retrieval_plan_built</text>
+    <rect x="470" y="180" width="150" height="64" rx="16" fill="#fef3c7" stroke="#f59e0b"/>
+    <text x="500" y="218" font-size="20" fill="#111827">Retrieving</text>
+    <text x="482" y="266" font-size="13" fill="#475569">memory_fused</text>
+    <rect x="680" y="180" width="140" height="64" rx="16" fill="#e9d5ff" stroke="#c084fc"/>
+    <text x="721" y="218" font-size="20" fill="#111827">Planning</text>
+    <text x="694" y="266" font-size="13" fill="#475569">plan_generated</text>
+    <rect x="880" y="180" width="150" height="64" rx="16" fill="#fee2e2" stroke="#fca5a5"/>
+    <text x="911" y="218" font-size="20" fill="#111827">Executing</text>
+    <text x="898" y="266" font-size="13" fill="#475569">step_started / finished</text>
+    <rect x="880" y="330" width="120" height="60" rx="16" fill="#fecaca" stroke="#ef4444"/>
+    <text x="917" y="365" font-size="20" fill="#111827">Failed</text>
+    <text x="885" y="412" font-size="13" fill="#475569">run_failed</text>
+    <rect x="1060" y="180" width="90" height="64" rx="16" fill="#cffafe" stroke="#67e8f9"/>
+    <text x="1074" y="218" font-size="20" fill="#111827">Done</text>
+    <text x="1032" y="266" font-size="13" fill="#475569">run_completed</text>
+  </g>
+  <g stroke-width="4" fill="none">
+    <path d="M200 212 H260" stroke="#2563eb"/>
+    <path d="M410 212 H470" stroke="#65a30d"/>
+    <path d="M620 212 H680" stroke="#d97706"/>
+    <path d="M820 212 H880" stroke="#9333ea"/>
+    <path d="M1030 212 H1060" stroke="#ef4444"/>
+    <path d="M955 244 V330" stroke="#ef4444"/>
+  </g>
+</svg>

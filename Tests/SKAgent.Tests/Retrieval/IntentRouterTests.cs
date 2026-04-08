@@ -1,4 +1,5 @@
-﻿using SKAgent.Application.Retrieval;
+using Xunit;
+using SKAgent.Application.Retrieval;
 using SKAgent.Core.Retrieval;
 
 namespace SKAgent.Tests.Retrieval;
@@ -14,8 +15,21 @@ public sealed class IntentRouterTests
 
         Assert.True(result.Intents.HasFlag(RetrievalIntent.Recall));
         Assert.True(result.Intents.HasFlag(RetrievalIntent.ToolNeeded));
+        Assert.Contains(RetrievalRoute.RecentHistory, result.Plan.Routes);
         Assert.Contains(RetrievalRoute.Vector, result.Plan.Routes);
         Assert.Contains(RetrievalRoute.Tool, result.Plan.Routes);
+    }
+
+    [Fact]
+    public async Task RouteAsync_ShouldMarkRecall_ForRecentConversationQuestion()
+    {
+        var result = await _router.RouteAsync("我刚刚说了什么？", null);
+
+        Assert.True(result.Intents.HasFlag(RetrievalIntent.Recall));
+        Assert.Equal(RetrievalRoute.RecentHistory, result.Plan.Routes[0]);
+        Assert.Contains(RetrievalRoute.Vector, result.Plan.Routes);
+        Assert.Contains(RetrievalRoute.Facts, result.Plan.Routes);
+        Assert.DoesNotContain("fallback_chitchat", result.Signals);
     }
 
     [Fact]

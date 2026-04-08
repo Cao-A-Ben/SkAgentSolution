@@ -1,4 +1,5 @@
-﻿using System.Text.Json;
+using System.Text.Json;
+using SkAgent.Runtime.Runtime;
 using SKAgent.Core.Agent;
 using SKAgent.Core.Execution;
 using SKAgent.Core.Planning;
@@ -464,7 +465,7 @@ namespace SkAgent.Runtime.Execution
             ctx.State["run"] = run;
             ctx.State["persona"] = run.ConversationState["persona"];        // 或 persona 对象
             ctx.State["memoryBundle"] = run.ConversationState["memoryBundle"]; // W6-2 BuildAsync 后放进去的
-            ctx.State["working_memory"] = run.ConversationState["working_memory"]; // 你原来用到的
+            ctx.State["working_memory"] = WorkingMemoryAccessor.GetOrCreate(run); // ensure per-run working memory always exists
 
 
             return ctx;

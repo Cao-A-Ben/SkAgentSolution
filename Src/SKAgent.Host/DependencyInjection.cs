@@ -113,6 +113,7 @@ public static class DependencyInjection
         var cs = configuration.GetConnectionString("PgVector");
         if (string.IsNullOrWhiteSpace(cs))
         {
+            services.AddSingleton<IRecentConversationHistory, ShortTermRecentConversationHistory>();
             services.AddSingleton<ILongTermMemory, NoOpLongTermMemory>();
         }
         else
@@ -124,6 +125,7 @@ public static class DependencyInjection
                 return builder.Build();
             });
 
+            services.AddSingleton<IRecentConversationHistory, PgRecentConversationHistory>();
             services.AddSingleton<IVectorStore, PgVectorStore>();
             services.AddSingleton<ILongTermMemory, PgLongTermMemory>();
         }

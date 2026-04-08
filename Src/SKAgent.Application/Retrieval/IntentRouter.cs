@@ -1,4 +1,4 @@
-﻿using SKAgent.Core.Retrieval;
+using SKAgent.Core.Retrieval;
 
 namespace SKAgent.Application.Retrieval;
 
@@ -23,7 +23,11 @@ public sealed class IntentRouter : IIntentRouter
             signals.Add("greeting_or_smalltalk");
         }
 
-        if (ContainsAny(text, "记得", "之前", "上次", "回忆", "目标", "偏好", "习惯", "remember", "history"))
+        if (ContainsAny(
+                text,
+                "记得", "之前", "上次", "回忆", "目标", "偏好", "习惯",
+                "刚刚", "刚才", "前面说", "提到", "说了什么", "刚刚说了什么", "刚才说了什么",
+                "remember", "history"))
         {
             intents |= RetrievalIntent.Recall;
             signals.Add("recall_keywords");
@@ -53,13 +57,10 @@ public sealed class IntentRouter : IIntentRouter
             signals.Add("fallback_chitchat");
         }
 
-        var routes = new HashSet<RetrievalRoute> { RetrievalRoute.ShortTerm, RetrievalRoute.Working, RetrievalRoute.Profile };
-        if (intents.HasFlag(RetrievalIntent.Recall)) routes.Add(RetrievalRoute.Vector);
-        if (intents.HasFlag(RetrievalIntent.Recall) || intents.HasFlag(RetrievalIntent.HealthSensitive)) routes.Add(RetrievalRoute.Facts);
-        if (intents.HasFlag(RetrievalIntent.ToolNeeded)) routes.Add(RetrievalRoute.Tool);
-
+        var routes = BuildRoutes(intents);
         var budgets = new Dictionary<RetrievalRoute, int>
         {
+            [RetrievalRoute.RecentHistory] = 1800,
             [RetrievalRoute.ShortTerm] = 4000,
             [RetrievalRoute.Working] = 3000,
             [RetrievalRoute.Profile] = 1200,
@@ -71,6 +72,7 @@ public sealed class IntentRouter : IIntentRouter
 
         var topK = new Dictionary<RetrievalRoute, int>
         {
+            [RetrievalRoute.RecentHistory] = 6,
             [RetrievalRoute.ShortTerm] = 20,
             [RetrievalRoute.Working] = 20,
             [RetrievalRoute.Profile] = 6,
@@ -85,7 +87,7 @@ public sealed class IntentRouter : IIntentRouter
         var safetyPolicy = intents.HasFlag(RetrievalIntent.HealthSensitive) ? "health_sensitive_v1" : null;
 
         var plan = new RetrievalPlan(
-            Routes: routes.ToArray(),
+            Routes: routes,
             Budgets: budgets,
             TopK: topK,
             RewriteQuery: intents.HasFlag(RetrievalIntent.Recall) || intents.HasFlag(RetrievalIntent.HealthSensitive),
@@ -94,6 +96,35 @@ public sealed class IntentRouter : IIntentRouter
             Rationale: BuildRationale(intents, signals));
 
         return Task.FromResult(new IntentRoutingResult(intents, confidence, signals, plan));
+    }
+
+    private static IReadOnlyList<RetrievalRoute> BuildRoutes(RetrievalIntent intents)
+    {
+        var routes = new List<RetrievalRoute>();
+
+        void Add(RetrievalRoute route)
+        {
+            if (!routes.Contains(route))
+                routes.Add(route);
+        }
+
+        if (intents.HasFlag(RetrievalIntent.Recall))
+            Add(RetrievalRoute.RecentHistory);
+
+        Add(RetrievalRoute.ShortTerm);
+        Add(RetrievalRoute.Working);
+        Add(RetrievalRoute.Profile);
+
+        if (intents.HasFlag(RetrievalIntent.Recall) || intents.HasFlag(RetrievalIntent.HealthSensitive))
+            Add(RetrievalRoute.Facts);
+
+        if (intents.HasFlag(RetrievalIntent.Recall))
+            Add(RetrievalRoute.Vector);
+
+        if (intents.HasFlag(RetrievalIntent.ToolNeeded))
+            Add(RetrievalRoute.Tool);
+
+        return routes;
     }
 
     private static bool ContainsAny(string text, params string[] keywords)

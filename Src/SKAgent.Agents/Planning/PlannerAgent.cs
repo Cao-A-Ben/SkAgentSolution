@@ -107,7 +107,10 @@ namespace SKAgent.Agents.Planning
 可用Tools:
 {{$tools}}
 工具使用硬规则（必须遵守）：
-- 如果某个步骤可以通过可用Tools直接完成（如字符串处理、时间获取、计算、HTTP请求），必须优先生成 kind="tool" 的步骤。
+- 如果用户输入是问候、寒暄、闲聊，或是在回忆最近对话、询问“我刚刚说了什么/之前说了什么”，不要为了展示工具而调用工具。
+- 上述场景通常应优先生成 kind="agent" 且 target="chat" 的步骤。
+- 只有在用户显式要求转换、计算、时间、检索、搜索、外部信息或协议调用时，才优先生成 kind="tool" 的步骤。
+- 不要仅因为某个工具存在，就强行生成工具步骤。
 - kind="tool" 时：
   - target 必须严格从 TOOLS CATALOG 的 name 中选择，禁止杜撰。
   - argumentsJson 必须符合该工具的 input schema。
@@ -122,9 +125,9 @@ namespace SKAgent.Agents.Planning
         {
            "order":1,
            "kind":"tool",
-           "target":"string.upper",
-           "argumentsJson": "{\"text\":\"hello\"}",
-           "expectedOutput": "HELLO"
+           "target":"time.now",
+           "argumentsJson": "{}",
+           "expectedOutput": "当前 UTC 时间"
         },
          {
            "order": 2,

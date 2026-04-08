@@ -1,4 +1,4 @@
-﻿using SKAgent.Core.Memory.LongTerm;
+using SKAgent.Core.Memory.LongTerm;
 
 namespace SKAgent.Application.Memory;
 
@@ -28,6 +28,7 @@ public sealed class MemoryExtractor
                 Metadata: new Dictionary<string, string>
                 {
                     ["source"] = "user_input",
+                    ["role"] = "user",
                     ["conversationId"] = conversationId,
                     ["runId"] = runId,
                     ["persona"] = personaName
@@ -45,6 +46,7 @@ public sealed class MemoryExtractor
                 Metadata: new Dictionary<string, string>
                 {
                     ["source"] = "assistant_output",
+                    ["role"] = "assistant",
                     ["conversationId"] = conversationId,
                     ["runId"] = runId,
                     ["persona"] = personaName

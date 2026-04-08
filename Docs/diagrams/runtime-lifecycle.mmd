@@ -1,0 +1,28 @@
+sequenceDiagram
+    participant U as User
+    participant API as Host API
+    participant Prep as RunPreparation
+    participant Router as Intent Router
+    participant Mem as Memory Orchestrator
+    participant Planner as Planner
+    participant Exec as Executor
+    participant Obs as Event Store
+    participant Persist as Long-term Memory
+
+    U->>API: /api/agent/run or /api/agentstream/run
+    API->>Prep: Create run and prepare input
+    Prep->>Router: Classify intents
+    Router-->>Prep: RetrievalPlan
+    Prep->>Obs: intent_classified
+    Prep->>Obs: retrieval_plan_built
+    Prep->>Mem: Retrieve short/working/facts/profile/vector
+    Mem->>Obs: vector_query_executed
+    Mem->>Obs: memory_fused
+    Mem-->>Planner: Fused memory context
+    Planner->>Obs: plan_generated
+    Planner-->>Exec: AgentPlan
+    Exec->>Obs: step_started / tool_called / step_finished
+    Exec-->>API: final output or stream chunks
+    Exec->>Obs: run_completed
+    Exec->>Persist: extract -> chunk -> embed -> upsert
+    Persist->>Obs: fact_upserted / profile_updated / vector_upserted

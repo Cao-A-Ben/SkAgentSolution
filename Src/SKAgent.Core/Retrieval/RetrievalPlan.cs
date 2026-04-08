@@ -1,16 +1,17 @@
-﻿using SKAgent.Core.Memory;
+using SKAgent.Core.Memory;
 
 namespace SKAgent.Core.Retrieval;
 
 public enum RetrievalRoute
 {
-    ShortTerm = 1,
-    Working = 2,
-    Facts = 3,
-    Profile = 4,
-    Vector = 5,
-    Tool = 6,
-    Web = 7
+    RecentHistory = 1,
+    ShortTerm = 2,
+    Working = 3,
+    Facts = 4,
+    Profile = 5,
+    Vector = 6,
+    Tool = 7,
+    Web = 8
 }
 
 public sealed record RetrievalPlan(
@@ -43,6 +44,7 @@ public sealed record RetrievalFusionInput(
 );
 
 public sealed record RetrievalFusionResult(
+    IReadOnlyList<MemoryItem> RecentHistory,
     IReadOnlyList<MemoryItem> ShortTerm,
     IReadOnlyList<MemoryItem> Working,
     IReadOnlyList<MemoryItem> LongTerm,

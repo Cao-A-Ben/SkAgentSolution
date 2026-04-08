@@ -1,0 +1,63 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1380" height="760" viewBox="0 0 1380 760" role="img" aria-label="Runtime lifecycle sequence">
+  <rect width="1380" height="760" fill="#f8fafc"/>
+  <text x="44" y="52" font-family="Segoe UI, Arial, sans-serif" font-size="30" font-weight="700" fill="#0f172a">Runtime Lifecycle</text>
+  <text x="44" y="80" font-family="Segoe UI, Arial, sans-serif" font-size="14" fill="#475569">From request intake to replayable completion and long-term memory persistence</text>
+  <g font-family="Segoe UI, Arial, sans-serif" font-size="15" fill="#111827" text-anchor="middle">
+    <text x="110" y="128">User</text>
+    <text x="270" y="128">Host API</text>
+    <text x="450" y="128">RunPreparation</text>
+    <text x="640" y="128">Intent Router</text>
+    <text x="840" y="128">Memory</text>
+    <text x="1010" y="128">Planner/Executor</text>
+    <text x="1190" y="128">Event Store</text>
+    <text x="1320" y="128">Persist</text>
+  </g>
+  <g stroke="#cbd5e1" stroke-width="2">
+    <line x1="110" y1="145" x2="110" y2="710"/>
+    <line x1="270" y1="145" x2="270" y2="710"/>
+    <line x1="450" y1="145" x2="450" y2="710"/>
+    <line x1="640" y1="145" x2="640" y2="710"/>
+    <line x1="840" y1="145" x2="840" y2="710"/>
+    <line x1="1010" y1="145" x2="1010" y2="710"/>
+    <line x1="1190" y1="145" x2="1190" y2="710"/>
+    <line x1="1320" y1="145" x2="1320" y2="710"/>
+  </g>
+  <g font-family="Segoe UI, Arial, sans-serif" font-size="14" fill="#0f172a">
+    <rect x="120" y="170" width="140" height="40" rx="10" fill="#dbeafe" stroke="#60a5fa"/>
+    <text x="190" y="195">/api/agent/run</text>
+    <line x1="260" y1="190" x2="430" y2="190" stroke="#2563eb" stroke-width="3"/>
+    <polygon points="430,190 418,184 418,196" fill="#2563eb"/>
+    <rect x="300" y="240" width="130" height="40" rx="10" fill="#ecfccb" stroke="#84cc16"/>
+    <text x="365" y="265">Prepare input</text>
+    <line x1="430" y1="260" x2="620" y2="260" stroke="#65a30d" stroke-width="3"/>
+    <polygon points="620,260 608,254 608,266" fill="#65a30d"/>
+    <rect x="510" y="310" width="110" height="40" rx="10" fill="#fef3c7" stroke="#f59e0b"/>
+    <text x="565" y="335">Classify</text>
+    <line x1="620" y1="330" x2="470" y2="330" stroke="#d97706" stroke-width="3"/>
+    <polygon points="470,330 482,324 482,336" fill="#d97706"/>
+    <text x="510" y="322" font-size="12" fill="#475569">RetrievalPlan</text>
+    <line x1="450" y1="390" x2="1170" y2="390" stroke="#0ea5e9" stroke-width="3"/>
+    <polygon points="1170,390 1158,384 1158,396" fill="#0ea5e9"/>
+    <text x="770" y="382" font-size="12" fill="#475569">intent_classified / retrieval_plan_built</text>
+    <line x1="450" y1="450" x2="820" y2="450" stroke="#ca8a04" stroke-width="3"/>
+    <polygon points="820,450 808,444 808,456" fill="#ca8a04"/>
+    <text x="610" y="442" font-size="12" fill="#475569">retrieve short / facts / profile / vector</text>
+    <line x1="840" y1="500" x2="1170" y2="500" stroke="#0ea5e9" stroke-width="3"/>
+    <polygon points="1170,500 1158,494 1158,506" fill="#0ea5e9"/>
+    <text x="980" y="492" font-size="12" fill="#475569">vector_query_executed / memory_fused</text>
+    <line x1="840" y1="560" x2="990" y2="560" stroke="#65a30d" stroke-width="3"/>
+    <polygon points="990,560 978,554 978,566" fill="#65a30d"/>
+    <text x="896" y="552" font-size="12" fill="#475569">fused context</text>
+    <rect x="1030" y="540" width="120" height="40" rx="10" fill="#ffffff" stroke="#84cc16"/>
+    <text x="1090" y="565">Plan + Execute</text>
+    <line x1="1010" y1="620" x2="1170" y2="620" stroke="#0ea5e9" stroke-width="3"/>
+    <polygon points="1170,620 1158,614 1158,626" fill="#0ea5e9"/>
+    <text x="1088" y="612" font-size="12" fill="#475569">step events / run_completed</text>
+    <line x1="1010" y1="670" x2="1300" y2="670" stroke="#7c3aed" stroke-width="3"/>
+    <polygon points="1300,670 1288,664 1288,676" fill="#7c3aed"/>
+    <text x="1140" y="662" font-size="12" fill="#475569">extract -> chunk -> embed -> upsert</text>
+    <line x1="1320" y1="700" x2="1190" y2="700" stroke="#0ea5e9" stroke-width="3"/>
+    <polygon points="1190,700 1202,694 1202,706" fill="#0ea5e9"/>
+    <text x="1252" y="692" font-size="12" fill="#475569">fact_upserted / profile_updated / vector_upserted</text>
+  </g>
+</svg>

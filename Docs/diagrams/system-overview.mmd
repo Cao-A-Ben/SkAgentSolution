@@ -1,0 +1,49 @@
+flowchart LR
+    user["User / UI / Voice"] --> api["Host API\nREST / SSE / Voice Entry"]
+
+    subgraph runtime["Runtime Layer"]
+        prep["RunPreparation\nIntent Router\nRetrievalPlan"] --> planner["Planner"] --> executor["Executor"] --> reflection["Reflection / Reviewer"]
+    end
+
+    api --> prep
+
+    subgraph memory["Memory & Retrieval"]
+        short["Short-term"]
+        working["Working"]
+        facts["Facts"]
+        profile["Profile"]
+        vector["Vector / pgvector"]
+        fusion["Retrieval Fusion"]
+    end
+
+    prep --> fusion
+    short --> fusion
+    working --> fusion
+    facts --> fusion
+    profile --> fusion
+    vector --> fusion
+    fusion --> planner
+
+    subgraph tools["Tools & Extensions"]
+        tool["Built-in Tools"]
+        mcp["MCP Adapter"]
+        skills["Domain Skills"]
+    end
+
+    executor --> tool
+    executor --> mcp
+    executor --> skills
+
+    subgraph platform["Platform & Infrastructure"]
+        event["Observability / Event Store / Replay"]
+        embed["Embedding Provider"]
+        db["Postgres / pgvector / SQL Store"]
+    end
+
+    prep --> event
+    planner --> event
+    executor --> event
+    reflection --> event
+    reflection --> embed --> db
+    reflection --> db
+    db --> vector

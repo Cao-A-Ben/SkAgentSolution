@@ -6,6 +6,7 @@ using Microsoft.SemanticKernel.ChatCompletion;
 using Microsoft.SemanticKernel.Connectors.OpenAI;
 using SKAgent.Core.Agent;
 using SKAgent.Core.Chat;
+using SKAgent.Core.Retrieval;
 
 namespace SKAgent.Agents
 {
@@ -54,6 +55,23 @@ namespace SKAgent.Agents
 
             // 2. 通过 Composer 将 StepContext 组合为 ChatContext
             var composed = _composer.Compose(context);
+
+            // 2.5 对于 recent recall，若上游已构造出明确候选答案，则直接返回，避免模型追加无关总结。
+            var intents = context.State.TryGetValue("retrieval_intents", out var riObj) && riObj is RetrievalIntent retrievalIntents
+                ? retrievalIntents
+                : RetrievalIntent.None;
+            var recallCandidate = context.State.TryGetValue("recall_answer_candidate", out var rcObj)
+                ? rcObj as string
+                : null;
+
+            if (intents.HasFlag(RetrievalIntent.Recall) && !string.IsNullOrWhiteSpace(recallCandidate))
+            {
+                return new AgentResult
+                {
+                    Output = recallCandidate,
+                    IsSuccess = true
+                };
+            }
 
             // 3. 构建 ChatHistory，注入系统消息和用户消息
             var history = new ChatHistory();

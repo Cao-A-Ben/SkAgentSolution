@@ -1,3 +1,7 @@
+> Status: Archived legacy document
+
+> See the new main docs under `Docs/01-roadmap`, `Docs/02-architecture`, and `Docs/03-modules`.
+
 # Observability（Week7 Event Schema）
 
 ## Envelope

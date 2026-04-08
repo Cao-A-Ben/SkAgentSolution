@@ -1,0 +1,12 @@
+stateDiagram-v2
+    [*] --> Created
+    Created --> Preparing: run_started
+    Preparing --> Retrieving: intent_classified / retrieval_plan_built
+    Retrieving --> Planning: memory_fused
+    Planning --> Executing: plan_generated
+    Executing --> Reflecting: steps finished
+    Executing --> Failed: run_failed
+    Reflecting --> Persisting: run_completed
+    Persisting --> Replayable: vector_upserted / profile_updated
+    Failed --> Replayable: failure events captured
+    Replayable --> [*]

@@ -1,4 +1,4 @@
-﻿using System.Security.Cryptography;
+using System.Security.Cryptography;
 using System.Text;
 using SKAgent.Core.Memory;
 using SKAgent.Core.Retrieval;
@@ -22,11 +22,11 @@ public sealed class RetrievalFusion : IRetrievalFusion
         foreach (var kv in byRoute)
         {
             var route = kv.Key;
-            var priority = GetPriority(route);
 
             foreach (var item in kv.Value)
             {
-                var key = Sha1(item.Content);
+                var priority = GetPriority(route, item);
+                var key = Sha1(NormalizeForDedupe(item.Content));
                 if (!dedupeMap.TryGetValue(key, out var existing))
                 {
                     dedupeMap[key] = (route, item, priority);
@@ -48,8 +48,14 @@ public sealed class RetrievalFusion : IRetrievalFusion
             .ToDictionary(
                 g => g.Key,
                 g => (IReadOnlyList<MemoryItem>)g.Select(v => v.item)
-                    .OrderByDescending(i => i.At)
+                    .OrderByDescending(i => GetPriority(g.Key, i))
+                    .ThenByDescending(i => i.Score ?? 0)
+                    .ThenByDescending(i => i.At)
                     .ToList());
+
+        var recentHistory = Clip(
+            itemsByRoute.TryGetValue(RetrievalRoute.RecentHistory, out var rh) ? rh : [],
+            GetBudget(budgets, RetrievalRoute.RecentHistory));
 
         var shortTerm = Clip(
             itemsByRoute.TryGetValue(RetrievalRoute.ShortTerm, out var st) ? st : [],
@@ -70,7 +76,8 @@ public sealed class RetrievalFusion : IRetrievalFusion
             longCandidates.AddRange(web);
 
         longCandidates = longCandidates
-            .OrderByDescending(i => i.Score ?? 0)
+            .OrderByDescending(i => GetPriority(GetRoute(i), i))
+            .ThenByDescending(i => i.Score ?? 0)
             .ThenByDescending(i => i.At)
             .ToList();
 
@@ -83,17 +90,19 @@ public sealed class RetrievalFusion : IRetrievalFusion
 
         var byRouteCounts = new Dictionary<RetrievalRoute, int>
         {
+            [RetrievalRoute.RecentHistory] = recentHistory.Count,
             [RetrievalRoute.ShortTerm] = shortTerm.Count,
             [RetrievalRoute.Working] = working.Count,
-            [RetrievalRoute.Facts] = longTerm.Count(i => i.Metadata?.TryGetValue("route", out var r) == true && r == "facts"),
-            [RetrievalRoute.Profile] = longTerm.Count(i => i.Metadata?.TryGetValue("route", out var r) == true && r == "profile"),
-            [RetrievalRoute.Vector] = longTerm.Count(i => i.Metadata?.TryGetValue("route", out var r) == true && r == "vector")
+            [RetrievalRoute.Facts] = longTerm.Count(i => GetRoute(i) == RetrievalRoute.Facts),
+            [RetrievalRoute.Profile] = longTerm.Count(i => GetRoute(i) == RetrievalRoute.Profile),
+            [RetrievalRoute.Vector] = longTerm.Count(i => GetRoute(i) == RetrievalRoute.Vector)
         };
 
-        var totalItems = shortTerm.Count + working.Count + longTerm.Count;
-        var budgetUsed = shortTerm.Sum(ContentLen) + working.Sum(ContentLen) + longTerm.Sum(ContentLen);
+        var totalItems = recentHistory.Count + shortTerm.Count + working.Count + longTerm.Count;
+        var budgetUsed = recentHistory.Sum(ContentLen) + shortTerm.Sum(ContentLen) + working.Sum(ContentLen) + longTerm.Sum(ContentLen);
 
         return new RetrievalFusionResult(
+            RecentHistory: recentHistory,
             ShortTerm: shortTerm,
             Working: working,
             LongTerm: longTerm,
@@ -107,17 +116,59 @@ public sealed class RetrievalFusion : IRetrievalFusion
     private static int GetBudget(IReadOnlyDictionary<RetrievalRoute, int> budgets, RetrievalRoute route)
         => budgets.TryGetValue(route, out var value) ? value : 0;
 
-    private static int GetPriority(RetrievalRoute route) => route switch
+    private static int GetPriority(RetrievalRoute route, MemoryItem item) => route switch
     {
-        RetrievalRoute.Facts => 300,    // facts > recent user statement > vector old
-        RetrievalRoute.ShortTerm => 250,
-        RetrievalRoute.Working => 240,
+        RetrievalRoute.RecentHistory when GetRole(item) == "user" => 340,
+        RetrievalRoute.RecentHistory when GetRole(item) == "assistant" => 330,
+        RetrievalRoute.Facts => 300,
+        RetrievalRoute.ShortTerm => 260,
+        RetrievalRoute.Working => 250,
         RetrievalRoute.Profile => 220,
-        RetrievalRoute.Vector => 150,
+        RetrievalRoute.Vector when GetRole(item) == "user" => 190,
+        RetrievalRoute.Vector => 170,
         RetrievalRoute.Web => 120,
         RetrievalRoute.Tool => 110,
         _ => 100
     };
+
+    private static RetrievalRoute GetRoute(MemoryItem item)
+    {
+        if (item.Metadata?.TryGetValue("route", out var route) == true)
+        {
+            return route switch
+            {
+                "recent_history" => RetrievalRoute.RecentHistory,
+                "short-term" => RetrievalRoute.ShortTerm,
+                "facts" => RetrievalRoute.Facts,
+                "profile" => RetrievalRoute.Profile,
+                "vector" => RetrievalRoute.Vector,
+                "web" => RetrievalRoute.Web,
+                _ => item.Layer == MemoryLayer.Working ? RetrievalRoute.Working : RetrievalRoute.ShortTerm
+            };
+        }
+
+        return item.Layer == MemoryLayer.Working ? RetrievalRoute.Working : RetrievalRoute.ShortTerm;
+    }
+
+    private static string GetRole(MemoryItem item)
+    {
+        if (item.Metadata?.TryGetValue("role", out var role) == true && !string.IsNullOrWhiteSpace(role))
+            return role;
+
+        if (item.Metadata?.TryGetValue("source", out var source) == true)
+        {
+            if (string.Equals(source, "user_input", StringComparison.OrdinalIgnoreCase)) return "user";
+            if (string.Equals(source, "assistant_output", StringComparison.OrdinalIgnoreCase)) return "assistant";
+        }
+
+        var text = item.Content ?? string.Empty;
+        if (text.Contains("用户原话", StringComparison.OrdinalIgnoreCase) || text.StartsWith("[user]", StringComparison.OrdinalIgnoreCase))
+            return "user";
+        if (text.Contains("系统处理", StringComparison.OrdinalIgnoreCase) || text.Contains("助手回复", StringComparison.OrdinalIgnoreCase) || text.StartsWith("[assistant]", StringComparison.OrdinalIgnoreCase))
+            return "assistant";
+
+        return string.Empty;
+    }
 
     private static IReadOnlyList<MemoryItem> Clip(IReadOnlyList<MemoryItem> items, int budgetChars)
     {
@@ -133,6 +184,31 @@ public sealed class RetrievalFusion : IRetrievalFusion
             acc += len;
         }
         return result;
+    }
+
+    private static string NormalizeForDedupe(string text)
+    {
+        var normalized = (text ?? string.Empty).Trim();
+        var prefixes = new[]
+        {
+            "最近用户原话：",
+            "相关历史用户原话：",
+            "最近系统处理：",
+            "相关历史助手回复摘要：",
+            "[user] ",
+            "[assistant] "
+        };
+
+        foreach (var prefix in prefixes)
+        {
+            if (normalized.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+            {
+                normalized = normalized[prefix.Length..].Trim();
+                break;
+            }
+        }
+
+        return normalized;
     }
 
     private static int ContentLen(MemoryItem item) => (item.Content ?? string.Empty).Length;

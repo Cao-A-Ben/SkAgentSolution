@@ -4,7 +4,7 @@ using System.Text;
 using SKAgent.Core.Runtime;
 using SKAgent.Runtime;
 
-namespace SKAgent.Application.Runtime
+namespace SkAgent.Runtime.Runtime
 {
     public static class WorkingMemoryAccessor
     {
