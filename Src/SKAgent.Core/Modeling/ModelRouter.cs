@@ -4,10 +4,11 @@ public enum ModelPurpose
 {
     Planner = 1,
     Chat = 2,
-    Embedding = 3,
-    Rerank = 4,
-    VoiceStt = 5,
-    VoiceTts = 6
+    Daily = 3,
+    Embedding = 4,
+    Rerank = 5,
+    VoiceStt = 6,
+    VoiceTts = 7
 }
 
 public sealed record ModelSelection(

@@ -6,10 +6,12 @@
     <File Path="Docs/02-architecture/runtime-lifecycle.md" />
     <File Path="Docs/02-architecture/codebase-modules.md" />
     <File Path="Docs/03-modules/memory-retrieval.md" />
+    <File Path="Docs/03-modules/daily-suggestions.md" />
     <File Path="Docs/03-modules/observability-replay.md" />
     <File Path="Docs/03-modules/tools-mcp.md" />
     <File Path="Docs/03-modules/week7-acceptance-runbook.md" />
     <File Path="Docs/sql/20260326_week7_pgvector.sql" />
+    <File Path="Docs/sql/20260409_week8_daily_suggestions.sql" />
     <File Path="README.md" />
   </Folder>
   <Folder Name="/Docs/adr/">

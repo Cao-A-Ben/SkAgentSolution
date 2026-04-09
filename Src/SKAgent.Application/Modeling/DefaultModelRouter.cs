@@ -10,6 +10,7 @@ public sealed class DefaultModelRouter : IModelRouter
         {
             ModelPurpose.Planner => new ModelSelection(purpose, "openai-compatible", "gpt-4o-mini", "planner_low_latency"),
             ModelPurpose.Chat => new ModelSelection(purpose, "openai-compatible", "gpt-4o", "chat_quality"),
+            ModelPurpose.Daily => new ModelSelection(purpose, "openai-compatible", "gpt-4o-mini", "daily_balanced"),
             ModelPurpose.Embedding => new ModelSelection(purpose, "local", "hash-embedding-v1-128", "offline_default"),
             _ => new ModelSelection(purpose, "openai-compatible", "gpt-4o-mini", "default")
         };

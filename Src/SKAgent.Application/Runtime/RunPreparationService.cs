@@ -109,6 +109,7 @@ public sealed class RunPreparationService : IRunPreparationService
         {
             PromptTarget.Planner => ModelPurpose.Planner,
             PromptTarget.Chat => ModelPurpose.Chat,
+            PromptTarget.Daily => ModelPurpose.Daily,
             _ => ModelPurpose.Chat
         };
 

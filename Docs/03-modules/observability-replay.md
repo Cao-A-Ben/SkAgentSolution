@@ -2,7 +2,7 @@
 
 - Status: Active SSOT
 - Owner: Ben + Codex
-- Last Updated: 2026-03-31
+- Last Updated: 2026-04-09
 - Related:
   - [Runtime Lifecycle](../02-architecture/runtime-lifecycle.md)
   - [Memory & Retrieval](./memory-retrieval.md)
@@ -49,6 +49,10 @@
 ### 平台与安全事件
 
 - model_selected
+- daily_job_started
+- suggestion_saved
+- daily_job_finished
+- daily_job_failed
 - event_payload_redacted
 - 后续预留：external_call_started / finished / blocked
 
@@ -113,6 +117,34 @@
 - latencyMs
 - dedupeCount
 
+### Week8 关键 payload
+
+#### `daily_job_started`
+
+- date
+- personaName
+- conversationId
+
+#### `suggestion_saved`
+
+- date
+- runId
+- hash
+- chars
+- eventLogPath
+
+#### `daily_job_finished`
+
+- date
+- runId
+- created
+
+#### `daily_job_failed`
+
+- date
+- runId
+- error
+
 ## 脱敏规则
 
 - Tool args 应按 allowlist / denylist 脱敏，不把敏感参数原样写入事件。
@@ -137,5 +169,6 @@
 
 ## 当前状态
 
-- 事件模型已覆盖 Runtime 主链路和 Week7 记忆增强链路。
+- 事件模型已覆盖 Runtime 主链路、Week7 记忆增强链路和 Week8 Daily Suggestion foundation。
+- JSONL 事件日志已可作为 daily run 的 replay 指针。
 - UI 回放、事件筛选和审计视图将在 Week9 继续加强。

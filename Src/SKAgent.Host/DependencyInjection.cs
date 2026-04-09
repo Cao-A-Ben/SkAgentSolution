@@ -5,6 +5,7 @@ using SkAgent.Runtime.Runtime;
 using SKAgent.Agents;
 using SKAgent.Agents.Planning;
 using SKAgent.Application.Chat;
+using SKAgent.Application.Jobs;
 using SKAgent.Application.Memory;
 using SKAgent.Application.Memory.Chunker;
 using SKAgent.Application.Modeling;
@@ -25,6 +26,7 @@ using SKAgent.Core.Memory.ShortTerm;
 using SKAgent.Core.Memory.Vector;
 using SKAgent.Core.Memory.Working;
 using SKAgent.Core.Modeling;
+using SKAgent.Core.Observability;
 using SKAgent.Core.Personas;
 using SKAgent.Core.Planning;
 using SKAgent.Core.Profile;
@@ -33,6 +35,7 @@ using SKAgent.Core.Reflection;
 using SKAgent.Core.Retrieval;
 using SKAgent.Core.Routing;
 using SKAgent.Core.Runtime;
+using SKAgent.Core.Suggestions;
 using SKAgent.Core.Tools.Abstractions;
 using SKAgent.Host.Boostrap;
 using SKAgent.Infrastructure.Mcp;
@@ -42,7 +45,9 @@ using SKAgent.Infrastructure.Memory.LongTerm;
 using SKAgent.Infrastructure.Memory.ShortTerm;
 using SKAgent.Infrastructure.Memory.Vector;
 using SKAgent.Infrastructure.Memory.Working;
+using SKAgent.Infrastructure.Observability;
 using SKAgent.Infrastructure.Profile;
+using SKAgent.Infrastructure.Suggestions;
 using SKAgent.SemanticKernel;
 
 namespace SKAgent.Host;
@@ -54,6 +59,9 @@ public static class DependencyInjection
         services.AddSingleton<IHttpContextAccessor, HttpContextAccessor>();
         services.AddSingleton(KernelFactory.Create(configuration));
         services.AddSingleton<IMcpClient, McpClient>();
+
+        services.Configure<DailySuggestionOptions>(configuration.GetSection(DailySuggestionOptions.SectionName));
+        services.AddSingleton(sp => sp.GetRequiredService<Microsoft.Extensions.Options.IOptions<DailySuggestionOptions>>().Value);
 
         services.AddSingleton<SKChatAgent>();
         services.AddSingleton<McpAgent>();
@@ -100,6 +108,8 @@ public static class DependencyInjection
         services.AddSingleton<IQueryRewriter, QueryRewriter>();
         services.AddSingleton<IRetrievalFusion, RetrievalFusion>();
         services.AddSingleton<IModelRouter, DefaultModelRouter>();
+        services.AddSingleton<ITextGenerationService, SemanticKernelTextGenerationService>();
+        services.AddSingleton<IRunEventLogFactory, JsonlRunEventLogFactory>();
 
         services.AddSingleton<PromptComposer>();
         services.AddSingleton<IPlanRequestFactory, DefaultPlanRequestFactory>();
@@ -115,6 +125,8 @@ public static class DependencyInjection
         {
             services.AddSingleton<IRecentConversationHistory, ShortTermRecentConversationHistory>();
             services.AddSingleton<ILongTermMemory, NoOpLongTermMemory>();
+            services.AddSingleton<ISuggestionStore, InMemorySuggestionStore>();
+            services.AddSingleton<IConversationScopeResolver, NullConversationScopeResolver>();
         }
         else
         {
@@ -128,7 +140,12 @@ public static class DependencyInjection
             services.AddSingleton<IRecentConversationHistory, PgRecentConversationHistory>();
             services.AddSingleton<IVectorStore, PgVectorStore>();
             services.AddSingleton<ILongTermMemory, PgLongTermMemory>();
+            services.AddSingleton<ISuggestionStore, SqlSuggestionStore>();
+            services.AddSingleton<IConversationScopeResolver, LatestConversationScopeResolver>();
         }
+
+        services.AddSingleton<DailySuggestionService>();
+        services.AddHostedService<SKAgent.Host.HostedServices.DailySuggestionJob>();
 
         return services;
     }
