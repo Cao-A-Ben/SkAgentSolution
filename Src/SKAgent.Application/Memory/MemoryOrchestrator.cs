@@ -545,26 +545,35 @@ public sealed class MemoryOrchestrator
         IReadOnlyList<MemoryItem> longItems,
         string currentUserInput)
     {
-        var snippets = recentItems
+        var allSnippets = recentItems
             .Concat(longItems)
             .Select(NormalizeProgressSnippet)
             .Where(s =>
                 !string.IsNullOrWhiteSpace(s)
                 && !IsMetaRecallQuestion(s)
                 && !string.Equals(s.Trim(), currentUserInput?.Trim(), StringComparison.OrdinalIgnoreCase)
-                && !IsGreetingLike(s)
-                && !IsLowValueProgressSnippet(s))
-            .OrderByDescending(GetProgressSnippetPriority)
-            .ThenByDescending(s => s.Length)
+                && !IsGreetingLike(s))
             .Distinct(StringComparer.OrdinalIgnoreCase)
-            .Where(s => GetProgressSnippetPriority(s) >= 4)
-            .Take(3)
             .ToArray();
 
-        if (snippets.Length == 0)
+        var snippets = allSnippets
+            .Where(s => !IsLowValueProgressSnippet(s))
+            .OrderByDescending(GetProgressSnippetPriority)
+            .ThenByDescending(s => s.Length)
+            .Where(s => GetProgressSnippetPriority(s) >= 4)
+            .Take(2)
+            .ToList();
+
+        var milestoneSnippets = ExtractProgressMilestones(allSnippets)
+            .Where(s => !snippets.Contains(s, StringComparer.OrdinalIgnoreCase))
+            .Take(3);
+
+        snippets.AddRange(milestoneSnippets);
+
+        if (snippets.Count == 0)
             return null;
 
-        return $"最近你主要推进了：{string.Join("；", snippets)}。";
+        return $"最近你主要推进了：{string.Join("；", snippets.Take(3))}。";
     }
 
     private static string StripLabel(string? text, string label)
@@ -678,6 +687,27 @@ public sealed class MemoryOrchestrator
             || value.Contains("Unicode", StringComparison.OrdinalIgnoreCase)
             || value.Contains("编码", StringComparison.OrdinalIgnoreCase)
             || value.Contains("大写", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static IReadOnlyList<string> ExtractProgressMilestones(IReadOnlyList<string> snippets)
+    {
+        var combined = string.Join("\n", snippets);
+        var milestones = new List<string>();
+
+        void AddIfMatched(string summary, params string[] keywords)
+        {
+            if (keywords.Any(k => combined.Contains(k, StringComparison.OrdinalIgnoreCase)))
+                milestones.Add(summary);
+        }
+
+        AddIfMatched("persona 切换与 coach 风格能力", "persona", "coach", "default");
+        AddIfMatched("Daily Suggestion 的生成、幂等与内容优化", "daily", "suggestion", "建议", "幂等", "conversation");
+        AddIfMatched("planner / chat / daily / embedding 的模型路由收敛", "model", "模型", "路由", "embedding", "planner", "chat", "daily");
+        AddIfMatched("rerank 接入与检索链路增强", "rerank", "检索", "vector");
+        AddIfMatched("真实环境验收、回归和事件链验证", "验收", "回归", "事件链", "JSONL", "回放");
+        AddIfMatched("Week8 到 Week8.5 的推进收口", "Week8", "Week8.5");
+
+        return milestones.Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
     }
 
     private static bool ContainsAny(string text, params string[] values)
