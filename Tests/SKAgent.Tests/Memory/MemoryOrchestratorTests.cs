@@ -104,7 +104,10 @@ public sealed class MemoryOrchestratorTests
         var candidate = Assert.IsType<string>(run.ConversationState["recall_answer_candidate"]);
         Assert.Contains("最近你主要推进了：", candidate);
         Assert.DoesNotContain("你刚刚说了", candidate);
-        Assert.Contains("Week8", candidate);
+        Assert.DoesNotContain("我想继续推进", candidate);
+        Assert.DoesNotContain("转换处理", candidate);
+        Assert.Contains("模型选择收敛为配置驱动", candidate);
+        Assert.Contains("幂等已经升级到 conversation 维度", candidate);
     }
 
     private sealed class TestRunContext : IRunContext

@@ -552,10 +552,12 @@ public sealed class MemoryOrchestrator
                 !string.IsNullOrWhiteSpace(s)
                 && !IsMetaRecallQuestion(s)
                 && !string.Equals(s.Trim(), currentUserInput?.Trim(), StringComparison.OrdinalIgnoreCase)
-                && !IsGreetingLike(s))
+                && !IsGreetingLike(s)
+                && !IsLowValueProgressSnippet(s))
             .OrderByDescending(GetProgressSnippetPriority)
             .ThenByDescending(s => s.Length)
             .Distinct(StringComparer.OrdinalIgnoreCase)
+            .Where(s => GetProgressSnippetPriority(s) >= 4)
             .Take(3)
             .ToArray();
 
@@ -640,7 +642,11 @@ public sealed class MemoryOrchestrator
         if (ContainsAny(text, "daily", "suggestion", "建议")) score += 5;
         if (ContainsAny(text, "model", "路由", "rerank", "embedding")) score += 5;
         if (ContainsAny(text, "验收", "回归", "推进", "优化", "完成")) score += 4;
+        if (ContainsAny(text, "幂等", "conversation", "pgvector", "回放", "JSONL")) score += 4;
         if (ContainsAny(text, "你好", "继续对话", "请问")) score -= 10;
+        if (ContainsAny(text, "我想继续", "我想", "想继续")) score -= 8;
+        if (ContainsAny(text, "系统刚才对输入做了转换处理", "解释了结果", "Unicode", "编码", "大写")) score -= 20;
+        if (ContainsAny(text, "你刚刚说了", "你刚刚对我说的是")) score -= 20;
         return score;
     }
 
@@ -655,6 +661,23 @@ public sealed class MemoryOrchestrator
             || value.StartsWith("你好", StringComparison.OrdinalIgnoreCase)
             || value.Contains("请问", StringComparison.OrdinalIgnoreCase)
             || value.Contains("继续对话", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool IsLowValueProgressSnippet(string text)
+    {
+        var value = text?.Trim() ?? string.Empty;
+        if (string.IsNullOrWhiteSpace(value))
+            return true;
+
+        return value.StartsWith("你刚刚说了", StringComparison.OrdinalIgnoreCase)
+            || value.StartsWith("你刚刚对我说的是", StringComparison.OrdinalIgnoreCase)
+            || value.StartsWith("我想继续", StringComparison.OrdinalIgnoreCase)
+            || value.StartsWith("我想", StringComparison.OrdinalIgnoreCase)
+            || value.Contains("系统刚才对输入做了转换处理", StringComparison.OrdinalIgnoreCase)
+            || value.Contains("解释了结果", StringComparison.OrdinalIgnoreCase)
+            || value.Contains("Unicode", StringComparison.OrdinalIgnoreCase)
+            || value.Contains("编码", StringComparison.OrdinalIgnoreCase)
+            || value.Contains("大写", StringComparison.OrdinalIgnoreCase);
     }
 
     private static bool ContainsAny(string text, params string[] values)
