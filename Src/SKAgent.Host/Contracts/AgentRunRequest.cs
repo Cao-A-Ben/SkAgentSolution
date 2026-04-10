@@ -15,6 +15,13 @@
         public string? ConversationId { get; set; }
 
         /// <summary>
+        /// 可选的人格名称。
+        /// - 若提供，则本次运行优先尝试按该 persona 执行。
+        /// - 若未提供，则继续按 conversation store/default 规则选择。
+        /// </summary>
+        public string? PersonaName { get; set; }
+
+        /// <summary>
         /// 用户输入文本（必填）。
         /// </summary>
         public string Input { get; init; } = string.Empty;

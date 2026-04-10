@@ -85,7 +85,7 @@ namespace SKAgent.Host.Controllers
                 ? req.ConversationId : Guid.NewGuid().ToString("N");
 
             // 2. 调用运行时服务执行完整流程
-            var run = await _runtimeService.RunAsync(conversationId, req.Input, ct: ct);
+            var run = await _runtimeService.RunAsync(conversationId, req.Input, req.PersonaName, ct: ct);
 
             // 3. 从 ConversationState 中提取画像快照
             var profileSnapshot = run.ConversationState.TryGetValue("profile", out var p) ? p as Dictionary<string, string> : null;

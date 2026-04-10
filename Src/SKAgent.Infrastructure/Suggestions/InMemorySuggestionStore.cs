@@ -7,17 +7,17 @@ public sealed class InMemorySuggestionStore : ISuggestionStore
 {
     private readonly ConcurrentDictionary<string, SuggestionRecord> _store = new(StringComparer.OrdinalIgnoreCase);
 
-    public Task<SuggestionRecord?> GetAsync(DateOnly date, string personaName, CancellationToken ct = default)
+    public Task<SuggestionRecord?> GetAsync(DateOnly date, string conversationId, CancellationToken ct = default)
     {
         ct.ThrowIfCancellationRequested();
-        _store.TryGetValue(BuildKey(date, personaName), out var record);
+        _store.TryGetValue(BuildKey(date, conversationId), out var record);
         return Task.FromResult(record);
     }
 
     public Task SaveAsync(SuggestionRecord record, CancellationToken ct = default)
     {
         ct.ThrowIfCancellationRequested();
-        _store[BuildKey(record.Date, record.PersonaName)] = record;
+        _store[BuildKey(record.Date, record.ConversationId)] = record;
         return Task.CompletedTask;
     }
 
@@ -33,6 +33,6 @@ public sealed class InMemorySuggestionStore : ISuggestionStore
         return Task.FromResult<IReadOnlyList<SuggestionRecord>>(items);
     }
 
-    private static string BuildKey(DateOnly date, string personaName)
-        => $"{date:yyyy-MM-dd}:{personaName}";
+    private static string BuildKey(DateOnly date, string conversationId)
+        => $"{date:yyyy-MM-dd}:{conversationId}";
 }

@@ -19,6 +19,7 @@
   <ItemGroup>
     <ProjectReference Include="../../Src/SKAgent.Application/SKAgent.Application.csproj" />
     <ProjectReference Include="../../Src/SKAgent.Core/SKAgent.Core.csproj" />
+    <ProjectReference Include="../../Src/SKAgent.Host/SKAgent.Host.csproj" />
   </ItemGroup>
 
 </Project>

@@ -169,6 +169,6 @@
 
 ## 当前状态
 
-- 事件模型已覆盖 Runtime 主链路、Week7 记忆增强链路和 Week8 Daily Suggestion foundation。
-- JSONL 事件日志已可作为 daily run 的 replay 指针。
+- 事件模型已覆盖 Runtime 主链路、Week7 记忆增强链路和 Week8 Daily Suggestion foundation，并已通过真实环境验收。
+- JSONL 事件日志已在真实 daily run 中充当 replay 指针并通过验收。
 - UI 回放、事件筛选和审计视图将在 Week9 继续加强。

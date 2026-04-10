@@ -8,7 +8,7 @@ CREATE TABLE IF NOT EXISTS daily_suggestions (
     prompt_hash text NOT NULL,
     created_at timestamptz NOT NULL DEFAULT now(),
     event_log_path text NULL,
-    CONSTRAINT pk_daily_suggestions PRIMARY KEY (suggestion_date, persona_name)
+    CONSTRAINT pk_daily_suggestions PRIMARY KEY (suggestion_date, conversation_id)
 );
 
 CREATE INDEX IF NOT EXISTS idx_daily_suggestions_created_at
@@ -16,3 +16,6 @@ CREATE INDEX IF NOT EXISTS idx_daily_suggestions_created_at
 
 CREATE INDEX IF NOT EXISTS idx_daily_suggestions_conversation
     ON daily_suggestions (conversation_id, created_at DESC);
+
+CREATE INDEX IF NOT EXISTS idx_daily_suggestions_persona
+    ON daily_suggestions (persona_name, created_at DESC);

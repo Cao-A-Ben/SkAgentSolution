@@ -2,7 +2,7 @@ namespace SKAgent.Core.Suggestions;
 
 public interface ISuggestionStore
 {
-    Task<SuggestionRecord?> GetAsync(DateOnly date, string personaName, CancellationToken ct = default);
+    Task<SuggestionRecord?> GetAsync(DateOnly date, string conversationId, CancellationToken ct = default);
 
     Task SaveAsync(SuggestionRecord record, CancellationToken ct = default);
 

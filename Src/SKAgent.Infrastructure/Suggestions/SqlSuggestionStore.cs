@@ -12,7 +12,7 @@ public sealed class SqlSuggestionStore : ISuggestionStore
         _dataSource = dataSource;
     }
 
-    public async Task<SuggestionRecord?> GetAsync(DateOnly date, string personaName, CancellationToken ct = default)
+    public async Task<SuggestionRecord?> GetAsync(DateOnly date, string conversationId, CancellationToken ct = default)
     {
         await using var conn = await _dataSource.OpenConnectionAsync(ct).ConfigureAwait(false);
         await using var cmd = conn.CreateCommand();
@@ -29,12 +29,12 @@ public sealed class SqlSuggestionStore : ISuggestionStore
                event_log_path
         FROM daily_suggestions
         WHERE suggestion_date = @suggestion_date
-          AND persona_name = @persona_name
+          AND conversation_id = @conversation_id
         LIMIT 1;
         """;
 
         cmd.Parameters.AddWithValue("suggestion_date", date);
-        cmd.Parameters.AddWithValue("persona_name", personaName);
+        cmd.Parameters.AddWithValue("conversation_id", conversationId);
 
         await using var reader = await cmd.ExecuteReaderAsync(ct).ConfigureAwait(false);
         if (!await reader.ReadAsync(ct).ConfigureAwait(false))
@@ -69,12 +69,12 @@ public sealed class SqlSuggestionStore : ISuggestionStore
             @prompt_hash,
             @created_at,
             @event_log_path)
-        ON CONFLICT (suggestion_date, persona_name)
+        ON CONFLICT (suggestion_date, conversation_id)
         DO UPDATE SET
             suggestion = EXCLUDED.suggestion,
             run_id = EXCLUDED.run_id,
-            conversation_id = EXCLUDED.conversation_id,
             profile_hash = EXCLUDED.profile_hash,
+            persona_name = EXCLUDED.persona_name,
             prompt_hash = EXCLUDED.prompt_hash,
             created_at = EXCLUDED.created_at,
             event_log_path = EXCLUDED.event_log_path;

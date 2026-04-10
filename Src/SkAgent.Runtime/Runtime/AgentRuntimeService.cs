@@ -103,7 +103,7 @@ namespace SkAgent.Runtime.Runtime
         /// <param name="input">用户输入文本。</param>
         /// <param name="ct">取消令牌。</param>
         /// <returns>完整的运行上下文，包含输出、步骤、画像快照等。</returns>
-        public async Task<AgentRunContext> RunAsync(string conversationId, string input, IRunEventSink? eventSink = null, CancellationToken ct = default)
+        public async Task<AgentRunContext> RunAsync(string conversationId, string input, string? requestedPersonaName = null, IRunEventSink? eventSink = null, CancellationToken ct = default)
         {
 
             // 1. 创建 Root AgentContext
@@ -113,6 +113,9 @@ namespace SkAgent.Runtime.Runtime
                 ExpectedOutput = string.Empty,
                 CancellationToken = ct
             };
+
+            if (!string.IsNullOrWhiteSpace(requestedPersonaName))
+                agentContext.State["requestedPersonaName"] = requestedPersonaName.Trim();
 
             // 2. 创建 AgentRunContext（SSOT），封装本次运行的所有状态
             var run = new AgentRunContext(agentContext, conversationId, eventSink);

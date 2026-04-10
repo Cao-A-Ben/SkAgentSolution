@@ -85,6 +85,16 @@ namespace SKAgent.Application.Chat
                 sb.AppendLine("当前为寒暄/建立关系场景：请用不超过2句话回复，并追加1个澄清问题。不要输出长列表。");
             }
 
+            if (string.Equals(persona.Name, "coach", StringComparison.OrdinalIgnoreCase))
+            {
+                sb.AppendLine();
+                sb.AppendLine("[Persona Style]");
+                sb.AppendLine("当前 persona=coach：回复应更像陪跑式教练。");
+                sb.AppendLine("优先帮助用户澄清目标、指出下一步、维持推进节奏。");
+                sb.AppendLine("语气要温和支持，但不要空泛鼓励，不要只停留在闲聊层面。");
+                sb.AppendLine("如果合适，请给出1个明确可执行的下一步。");
+            }
+
             if (IsAskingIdentity(input))
             {
                 sb.AppendLine();

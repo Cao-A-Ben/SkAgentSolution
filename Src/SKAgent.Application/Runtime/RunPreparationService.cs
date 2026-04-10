@@ -42,7 +42,13 @@ public sealed class RunPreparationService : IRunPreparationService
         }
         else
         {
-            var sel = _personaManager.GetOrSelect(run.RunId, run.ConversationId, requestedPersonaName: null);
+            var requestedPersonaName = run.ConversationState.TryGetValue("requestedPersonaName", out var rp)
+                && rp is string requestedName
+                && !string.IsNullOrWhiteSpace(requestedName)
+                ? requestedName
+                : null;
+
+            var sel = _personaManager.GetOrSelect(run.RunId, run.ConversationId, requestedPersonaName);
 
             persona = sel.Persona;
             run.ConversationState["persona"] = persona;

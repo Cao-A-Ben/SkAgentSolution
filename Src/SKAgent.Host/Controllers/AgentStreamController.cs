@@ -36,7 +36,7 @@ namespace SKAgent.Host.Controllers
             var conversationId = !string.IsNullOrWhiteSpace(request.ConversationId)
                 ? request.ConversationId : Guid.NewGuid().ToString("N");
             // 关键 让 runtime run 使用这个sink
-            await _runtimeService.RunAsync(conversationId, request.Input, eventSink: sink, ct: HttpContext.RequestAborted);
+            await _runtimeService.RunAsync(conversationId, request.Input, request.PersonaName, eventSink: sink, ct: HttpContext.RequestAborted);
 
 
             // SSE 不需要 return body；RunAsync 结束即流结束
