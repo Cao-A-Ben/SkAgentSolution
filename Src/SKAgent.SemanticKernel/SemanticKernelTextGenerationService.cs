@@ -8,10 +8,12 @@ namespace SKAgent.SemanticKernel;
 public sealed class SemanticKernelTextGenerationService : ITextGenerationService
 {
     private readonly Kernel _kernel;
+    private readonly IModelRouter _modelRouter;
 
-    public SemanticKernelTextGenerationService(Kernel kernel)
+    public SemanticKernelTextGenerationService(Kernel kernel, IModelRouter modelRouter)
     {
         _kernel = kernel;
+        _modelRouter = modelRouter;
     }
 
     public async Task<string> GenerateAsync(TextGenerationRequest request, CancellationToken ct = default)
@@ -21,8 +23,10 @@ public sealed class SemanticKernelTextGenerationService : ITextGenerationService
         history.AddSystemMessage(request.SystemPrompt);
         history.AddUserMessage(request.UserPrompt);
 
+        var selection = _modelRouter.Select(request.Purpose);
         var settings = new OpenAIPromptExecutionSettings
         {
+            ModelId = selection.Model,
             Temperature = request.Temperature,
             TopP = request.TopP
         };

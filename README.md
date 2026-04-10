@@ -7,7 +7,7 @@
 - 我们正在把项目从“能跑的 Agent Demo”推进到“可展示、可复现、可审计的产品级 Runtime”。
 - Week7 已完成：Intent Router、Memory Fusion、pgvector、Recent Recall 和事件链路已通过验收。
 - Week8.x 已验证通过：`default` 与 `coach` 双 persona 已可切换，且 `coach` 在对话与 Daily Suggestion 中已体现推进式风格。
-- 当前优先级是继续优化 Week8 Daily Suggestion 的内容质量，并开始进入 Week8.5 多模型适配层。
+- 当前优先级是继续优化 Week8 Daily Suggestion 的内容质量，并推进 Week8.5 多模型适配层，让用途选择与实际模型调用一致。
 - 关于为什么继续当前项目、它与 agent / claw-like 产品的关系、以及未来如何扩展，可参见 [Product Positioning](Docs/01-roadmap/product-positioning.md) 文档。
 
 ## 快速开始

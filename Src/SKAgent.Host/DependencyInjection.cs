@@ -62,6 +62,8 @@ public static class DependencyInjection
 
         services.Configure<DailySuggestionOptions>(configuration.GetSection(DailySuggestionOptions.SectionName));
         services.AddSingleton(sp => sp.GetRequiredService<Microsoft.Extensions.Options.IOptions<DailySuggestionOptions>>().Value);
+        services.Configure<ModelRoutingOptions>(configuration.GetSection(ModelRoutingOptions.SectionName));
+        services.AddSingleton(sp => sp.GetRequiredService<Microsoft.Extensions.Options.IOptions<ModelRoutingOptions>>().Value);
 
         services.AddSingleton<SKChatAgent>();
         services.AddSingleton<McpAgent>();

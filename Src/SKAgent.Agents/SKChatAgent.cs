@@ -6,6 +6,7 @@ using Microsoft.SemanticKernel.ChatCompletion;
 using Microsoft.SemanticKernel.Connectors.OpenAI;
 using SKAgent.Core.Agent;
 using SKAgent.Core.Chat;
+using SKAgent.Core.Modeling;
 using SKAgent.Core.Retrieval;
 
 namespace SKAgent.Agents
@@ -28,6 +29,7 @@ namespace SKAgent.Agents
 
         /// <summary>对话上下文组合器，负责拼接 Persona/Profile/Memory 为 Prompt。</summary>
         private readonly IChatContextComposer _composer;
+        private readonly IModelRouter _modelRouter;
 
         /// <summary>Agent 名称，用于 RouterAgent 路由匹配。</summary>
         public string Name => "chat";
@@ -37,10 +39,11 @@ namespace SKAgent.Agents
         /// </summary>
         /// <param name="kernel">Semantic Kernel 实例。</param>
         /// <param name="composer">对话上下文组合器。</param>
-        public SKChatAgent(Kernel kernel, IChatContextComposer composer)
+        public SKChatAgent(Kernel kernel, IChatContextComposer composer, IModelRouter modelRouter)
         {
             _kernel = kernel;
             _composer = composer;
+            _modelRouter = modelRouter;
         }
 
         /// <summary>
@@ -79,8 +82,10 @@ namespace SKAgent.Agents
             history.AddUserMessage(composed.UserMessage);
 
             // 4. 配置 LLM 参数：Temperature=0.3 保持较稳定的输出，TopP=0.9
+            var selection = _modelRouter.Select(ModelPurpose.Chat);
             var settings = new OpenAIPromptExecutionSettings
             {
+                ModelId = selection.Model,
                 Temperature = 0.3,
                 TopP = 0.9
             };

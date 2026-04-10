@@ -10,6 +10,7 @@ using SKAgent.Application.Prompt;
 using SKAgent.Application.Runtime;
 using SKAgent.Core.Agent;
 using SKAgent.Core.Memory;
+using SKAgent.Core.Modeling;
 using SKAgent.Core.Personas;
 using SKAgent.Core.Planning;
 using SKAgent.Core.Tools.Abstractions;
@@ -42,6 +43,7 @@ namespace SKAgent.Agents.Planning
 
         /// <summary>工具注册表，提供可用工具列表以注入 Planner prompt。</summary>
         private readonly IToolRegistry _toolRegistry;
+        private readonly IModelRouter _modelRouter;
 
         /// <summary>
         /// 初始化 PlannerAgent。
@@ -50,11 +52,12 @@ namespace SKAgent.Agents.Planning
         /// <param name="persona">人格配置选项，提供 PlannerHint。</param>PersonaOptions persona,
         /// <param name="toolRegistry">工具注册表，提供可用工具目录。</param>
         ///// <param name="promptComposer">Prompt 组合器，用于生成 Planner prompt。</param>
-        public PlannerAgent(Kernel kernel, IToolRegistry toolRegistry)
+        public PlannerAgent(Kernel kernel, IToolRegistry toolRegistry, IModelRouter modelRouter)
         {
             _kernel = kernel;
             //_promptComposer = promptComposer;
             _toolRegistry = toolRegistry;
+            _modelRouter = modelRouter;
         }
 
         /// <summary>
@@ -165,8 +168,10 @@ namespace SKAgent.Agents.Planning
             //                    ct: run.Root.CancellationToken);
 
             // 2. 配置 LLM 参数：Temperature=0 确保输出稳定可预测
+            var selection = _modelRouter.Select(ModelPurpose.Planner);
             OpenAIPromptExecutionSettings settings = new()
             {
+                ModelId = selection.Model,
                 Temperature = 0,
             };
 

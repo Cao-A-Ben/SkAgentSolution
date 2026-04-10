@@ -49,6 +49,7 @@
 ### 平台与安全事件
 
 - model_selected
+- Week8.5 之后，`model_selected` 不再只是“计划中的选择事件”，而是会与实际调用层使用的模型保持一致
 - daily_job_started
 - suggestion_saved
 - daily_job_finished
