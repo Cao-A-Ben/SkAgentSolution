@@ -27,6 +27,8 @@ public sealed class IntentRouter : IIntentRouter
                 text,
                 "记得", "之前", "上次", "回忆", "目标", "偏好", "习惯",
                 "刚刚", "刚才", "前面说", "提到", "说了什么", "刚刚说了什么", "刚才说了什么",
+                "总结一下", "帮我总结", "回顾一下", "帮我回顾", "最近进展", "主要推进了什么", "主要做了什么",
+                "最近完成了什么", "这段时间", "汇总最近进展", "总结最近",
                 "remember", "history"))
         {
             intents |= RetrievalIntent.Recall;
