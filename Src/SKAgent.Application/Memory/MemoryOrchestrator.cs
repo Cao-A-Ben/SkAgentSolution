@@ -6,6 +6,7 @@ using SKAgent.Core.Memory.LongTerm;
 using SKAgent.Core.Memory.ShortTerm;
 using SKAgent.Core.Memory.Working;
 using SKAgent.Core.Personas;
+using SKAgent.Application.Retrieval;
 using SKAgent.Core.Retrieval;
 using SKAgent.Core.Runtime;
 
@@ -22,6 +23,7 @@ public sealed class MemoryOrchestrator
     private readonly ILongTermMemory _long;
     private readonly IFactStore _facts;
     private readonly IQueryRewriter _queryRewriter;
+    private readonly RetrievalReranker _retrievalReranker;
     private readonly IRetrievalFusion _retrievalFusion;
     private readonly MemoryBudgeter _budgeter;
 
@@ -32,6 +34,7 @@ public sealed class MemoryOrchestrator
         ILongTermMemory longTerm,
         IFactStore facts,
         IQueryRewriter queryRewriter,
+        RetrievalReranker retrievalReranker,
         IRetrievalFusion retrievalFusion,
         MemoryBudgeter budgeter)
     {
@@ -41,6 +44,7 @@ public sealed class MemoryOrchestrator
         _long = longTerm;
         _facts = facts;
         _queryRewriter = queryRewriter;
+        _retrievalReranker = retrievalReranker;
         _retrievalFusion = retrievalFusion;
         _budgeter = budgeter;
     }
@@ -416,7 +420,15 @@ public sealed class MemoryOrchestrator
             }, ct);
         }
 
-        return merged;
+        if (merged.Count <= 1)
+            return merged;
+
+        return await _retrievalReranker.RerankAsync(
+            run,
+            userInput,
+            merged,
+            routing.Plan.GetTopK(RetrievalRoute.Vector, 8),
+            ct);
     }
 
     private static IReadOnlyDictionary<string, string> MergeMetadata(

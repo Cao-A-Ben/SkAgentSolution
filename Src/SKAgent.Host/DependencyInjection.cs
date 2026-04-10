@@ -108,6 +108,7 @@ public static class DependencyInjection
 
         services.AddSingleton<IIntentRouter, IntentRouter>();
         services.AddSingleton<IQueryRewriter, QueryRewriter>();
+        services.AddSingleton<RetrievalReranker>();
         services.AddSingleton<IRetrievalFusion, RetrievalFusion>();
         services.AddSingleton<IModelRouter, DefaultModelRouter>();
         services.AddSingleton<ITextGenerationService, SemanticKernelTextGenerationService>();
