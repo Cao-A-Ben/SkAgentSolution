@@ -99,13 +99,13 @@ public sealed class MemoryOrchestrator
 
         if (routing.Intents.HasFlag(RetrievalIntent.Recall))
         {
-            var recallSummary = BuildRecallSummary(recentItems, userInput);
+            var recallSummary = BuildRecallSummary(recentItems, longItems, userInput);
             if (!string.IsNullOrWhiteSpace(recallSummary))
             {
                 run.ConversationState["recall_answer_candidate"] = recallSummary;
                 await run.EmitAsync("recall_summary_built", new
                 {
-                    source = "recent_history",
+                    source = IsProgressSummaryRequest(userInput) ? "recent_history+long_term" : "recent_history",
                     preview = TrimSingleLine(recallSummary, 120)
                 }, ct);
             }
@@ -493,10 +493,16 @@ public sealed class MemoryOrchestrator
         return text;
     }
 
-    private static string? BuildRecallSummary(IReadOnlyList<MemoryItem> recentItems, string currentUserInput)
+    private static string? BuildRecallSummary(
+        IReadOnlyList<MemoryItem> recentItems,
+        IReadOnlyList<MemoryItem> longItems,
+        string currentUserInput)
     {
-        if (recentItems.Count == 0)
+        if (recentItems.Count == 0 && longItems.Count == 0)
             return null;
+
+        if (IsProgressSummaryRequest(currentUserInput))
+            return BuildProgressSummary(recentItems, longItems, currentUserInput);
 
         var userQuote = recentItems
             .Where(i => i.Metadata?.TryGetValue("role", out var role) == true && role == "user")
@@ -534,6 +540,31 @@ public sealed class MemoryOrchestrator
         return null;
     }
 
+    private static string? BuildProgressSummary(
+        IReadOnlyList<MemoryItem> recentItems,
+        IReadOnlyList<MemoryItem> longItems,
+        string currentUserInput)
+    {
+        var snippets = recentItems
+            .Concat(longItems)
+            .Select(NormalizeProgressSnippet)
+            .Where(s =>
+                !string.IsNullOrWhiteSpace(s)
+                && !IsMetaRecallQuestion(s)
+                && !string.Equals(s.Trim(), currentUserInput?.Trim(), StringComparison.OrdinalIgnoreCase)
+                && !IsGreetingLike(s))
+            .OrderByDescending(GetProgressSnippetPriority)
+            .ThenByDescending(s => s.Length)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .Take(3)
+            .ToArray();
+
+        if (snippets.Length == 0)
+            return null;
+
+        return $"最近你主要推进了：{string.Join("；", snippets)}。";
+    }
+
     private static string StripLabel(string? text, string label)
     {
         var value = text?.Trim() ?? string.Empty;
@@ -555,6 +586,23 @@ public sealed class MemoryOrchestrator
             || text.Contains("干了什么", StringComparison.OrdinalIgnoreCase);
     }
 
+    private static bool IsProgressSummaryRequest(string input)
+    {
+        var text = input?.Trim() ?? string.Empty;
+        if (string.IsNullOrWhiteSpace(text))
+            return false;
+
+        return (text.Contains("总结", StringComparison.OrdinalIgnoreCase)
+                || text.Contains("回顾", StringComparison.OrdinalIgnoreCase)
+                || text.Contains("汇总", StringComparison.OrdinalIgnoreCase))
+            && (text.Contains("最近", StringComparison.OrdinalIgnoreCase)
+                || text.Contains("这段时间", StringComparison.OrdinalIgnoreCase)
+                || text.Contains("主要推进", StringComparison.OrdinalIgnoreCase)
+                || text.Contains("主要做", StringComparison.OrdinalIgnoreCase)
+                || text.Contains("完成了什么", StringComparison.OrdinalIgnoreCase)
+                || text.Contains("进展", StringComparison.OrdinalIgnoreCase));
+    }
+
     private static string NormalizeAssistantSummary(string summary)
     {
         var value = (summary ?? string.Empty).Trim().TrimEnd('。', '.', '!', '！', '?', '？');
@@ -566,6 +614,51 @@ public sealed class MemoryOrchestrator
 
         return value + "。";
     }
+
+    private static string NormalizeProgressSnippet(MemoryItem item)
+    {
+        var text = item.Content ?? string.Empty;
+        text = StripLabel(text, "最近用户原话：");
+        text = StripLabel(text, "最近系统处理：");
+        text = StripLabel(text, "相关历史用户原话：");
+        text = StripLabel(text, "相关历史助手回复摘要：");
+        text = TrimSingleLine(text, 96).Trim().TrimEnd('。', '.', '!', '！', '?', '？');
+
+        if (text.StartsWith("[user]", StringComparison.OrdinalIgnoreCase))
+            text = text["[user]".Length..].Trim();
+        if (text.StartsWith("[assistant]", StringComparison.OrdinalIgnoreCase))
+            text = text["[assistant]".Length..].Trim();
+
+        return text;
+    }
+
+    private static int GetProgressSnippetPriority(string text)
+    {
+        var score = 0;
+        if (ContainsAny(text, "Week8", "Week8.5", "Week9")) score += 6;
+        if (ContainsAny(text, "persona", "coach", "default")) score += 5;
+        if (ContainsAny(text, "daily", "suggestion", "建议")) score += 5;
+        if (ContainsAny(text, "model", "路由", "rerank", "embedding")) score += 5;
+        if (ContainsAny(text, "验收", "回归", "推进", "优化", "完成")) score += 4;
+        if (ContainsAny(text, "你好", "继续对话", "请问")) score -= 10;
+        return score;
+    }
+
+    private static bool IsGreetingLike(string text)
+    {
+        var value = text?.Trim() ?? string.Empty;
+        if (string.IsNullOrWhiteSpace(value))
+            return true;
+
+        return value.Equals("你好", StringComparison.OrdinalIgnoreCase)
+            || value.Equals("你好啊", StringComparison.OrdinalIgnoreCase)
+            || value.StartsWith("你好", StringComparison.OrdinalIgnoreCase)
+            || value.Contains("请问", StringComparison.OrdinalIgnoreCase)
+            || value.Contains("继续对话", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool ContainsAny(string text, params string[] values)
+        => values.Any(v => text.Contains(v, StringComparison.OrdinalIgnoreCase));
 
     private static string TrimSingleLine(string text, int maxChars)
     {
