@@ -2,7 +2,7 @@
 
 - Status: Week8 Foundation Accepted
 - Owner: Ben + Codex
-- Last Updated: 2026-04-09
+- Last Updated: 2026-04-10
 - Related:
   - [Product Journey](../01-roadmap/product-journey.md)
   - [System Overview](../02-architecture/system-overview.md)
@@ -43,6 +43,11 @@
 - 第二次同日调用返回 `created=false`
 - `GET /api/suggestions` 能返回已落库建议
 - 2026-04-12 的真实结果已验证 `daily_suggestion_candidate_built` 生效，建议内容从泛化的“回顾对话”收敛为更贴近当前项目推进的下一步
+- 2026-04-15 的真实结果已验证 `coach + daily` 与 Week8.5 模型路由可以同时成立：
+  - `persona_selected.source = request`
+  - `model_selected.purpose = daily`
+  - `model_selected.model = gpt-4o-mini`
+  - 建议内容继续保持推进式风格
 - JSONL 事件链已确认包含：
   - `daily_job_started`
   - `persona_selected`
@@ -179,6 +184,7 @@
   - 更偏学习陪跑与项目推进
   - 更强调拆解下一步、保持节奏、减少泛化鼓励
   - 更适合 Week8.x 之后的主动建议和推进式对话
+  - 已在 Week8.5 的 `daily` 模型路由下完成真实环境验收
 
 ### `coach` 验收样例
 
@@ -235,6 +241,10 @@ POST /api/suggestions/daily:run
   - `你好！请问你在 Week8.x 中具体想实现什么目标或完成哪些任务？这样我可以帮助你制定下一步行动。`
 - `2026-04-14` 的 Daily Suggestion 示例：
   - `今天先整理 Week8 已验证通过的结果，再挑一个最关键的优化点继续推进。`
+- `2026-04-15` 的 Daily Suggestion + JSONL 事件确认：
+  - `model_selected purpose=daily -> gpt-4o-mini`
+  - `prompt_composed target=daily`
+  - `daily_job_finished created=true`
 
 ### 产品级后续方向
 

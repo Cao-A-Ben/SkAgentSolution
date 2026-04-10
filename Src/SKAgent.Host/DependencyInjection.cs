@@ -120,7 +120,9 @@ public static class DependencyInjection
         services.AddSingleton<IOutputEvaluator, SimpleOutputEvaluator>();
         services.AddSingleton<IReflectionAgent, ReflectionAgent>();
 
-        services.AddSingleton<IEmbeddingProvider>(_ => new EmbeddingProvider(dimension: 128));
+        services.AddSingleton<IEmbeddingProvider>(sp => new EmbeddingProvider(
+            sp.GetRequiredService<IModelRouter>(),
+            dimension: 128));
 
         var cs = configuration.GetConnectionString("PgVector");
         if (string.IsNullOrWhiteSpace(cs))

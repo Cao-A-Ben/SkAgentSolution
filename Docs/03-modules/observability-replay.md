@@ -2,7 +2,7 @@
 
 - Status: Active SSOT
 - Owner: Ben + Codex
-- Last Updated: 2026-04-09
+- Last Updated: 2026-04-10
 - Related:
   - [Runtime Lifecycle](../02-architecture/runtime-lifecycle.md)
   - [Memory & Retrieval](./memory-retrieval.md)
@@ -50,6 +50,10 @@
 
 - model_selected
 - Week8.5 之后，`model_selected` 不再只是“计划中的选择事件”，而是会与实际调用层使用的模型保持一致
+- 已通过真实环境确认：
+  - `planner -> gpt-4o-mini`
+  - `chat -> gpt-4o`
+  - `daily -> gpt-4o-mini`
 - daily_job_started
 - suggestion_saved
 - daily_job_finished
@@ -172,4 +176,5 @@
 
 - 事件模型已覆盖 Runtime 主链路、Week7 记忆增强链路和 Week8 Daily Suggestion foundation，并已通过真实环境验收。
 - JSONL 事件日志已在真实 daily run 中充当 replay 指针并通过验收。
+- Week8.5 第一阶段已通过真实环境验收，`model_selected` 已可作为用途级模型路由的可信审计证据。
 - UI 回放、事件筛选和审计视图将在 Week9 继续加强。

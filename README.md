@@ -1,13 +1,13 @@
 # SKAgentSolution
 
-产品级 Agent Runtime 项目，Week7 已完成并通过真实环境验收，当前进入 Week8：Daily Suggestion Job foundation 已完成真实环境验收，正在继续提升建议内容质量。
+产品级 Agent Runtime 项目，Week7 已完成并通过真实环境验收；Week8 foundation、Week8.x persona switching、Week8.5 多模型适配第一阶段均已完成真实环境验收。
 
 ## 当前定位
 
 - 我们正在把项目从“能跑的 Agent Demo”推进到“可展示、可复现、可审计的产品级 Runtime”。
 - Week7 已完成：Intent Router、Memory Fusion、pgvector、Recent Recall 和事件链路已通过验收。
 - Week8.x 已验证通过：`default` 与 `coach` 双 persona 已可切换，且 `coach` 在对话与 Daily Suggestion 中已体现推进式风格。
-- 当前优先级是继续优化 Week8 Daily Suggestion 的内容质量，并推进 Week8.5 多模型适配层，让用途选择与实际模型调用一致。
+- 当前优先级是继续深化 Week8 Daily Suggestion 的个性化质量，并把 `embedding / rerank / voice` 继续纳入统一模型路由。
 - 关于为什么继续当前项目、它与 agent / claw-like 产品的关系、以及未来如何扩展，可参见 [Product Positioning](Docs/01-roadmap/product-positioning.md) 文档。
 
 ## 快速开始
@@ -42,6 +42,7 @@ dotnet run --project Src/SKAgent.Host/SKAgent.Host.csproj
 - [Week7 Acceptance Runbook](Docs/03-modules/week7-acceptance-runbook.md)
 - [Daily Suggestions](Docs/03-modules/daily-suggestions.md)
 - [Observability & Replay](Docs/03-modules/observability-replay.md)
+- [Model Routing](Docs/03-modules/model-routing.md)
 - [Tools & MCP](Docs/03-modules/tools-mcp.md)
 
 ### 治理与归档
