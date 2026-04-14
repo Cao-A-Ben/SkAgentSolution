@@ -138,7 +138,12 @@ public sealed class PgLongTermMemory : ILongTermMemory
             return $"相关历史用户原话：{Trim(raw, 180)}";
 
         if (metadata.TryGetValue("role", out role) && string.Equals(role, "assistant", StringComparison.OrdinalIgnoreCase))
-            return $"相关历史助手回复摘要：{SummarizeAssistant(raw)}";
+        {
+            var summary = SummarizeAssistant(raw);
+            return string.IsNullOrWhiteSpace(summary)
+                ? string.Empty
+                : $"相关历史助手回复摘要：{summary}";
+        }
 
         return Trim(raw, 180);
     }
@@ -146,6 +151,9 @@ public sealed class PgLongTermMemory : ILongTermMemory
     private static string SummarizeAssistant(string text)
     {
         if (string.IsNullOrWhiteSpace(text))
+            return string.Empty;
+
+        if (IsAssistantPromptLike(text) || IsProgressSummaryEcho(text))
             return string.Empty;
 
         if (text.Contains("Unicode", StringComparison.OrdinalIgnoreCase)
@@ -157,6 +165,38 @@ public sealed class PgLongTermMemory : ILongTermMemory
         }
 
         return Trim(text, 120);
+    }
+
+    private static bool IsAssistantPromptLike(string text)
+    {
+        var value = text?.Trim() ?? string.Empty;
+        if (string.IsNullOrWhiteSpace(value))
+            return false;
+
+        return value.StartsWith("好的，请", StringComparison.OrdinalIgnoreCase)
+            || value.StartsWith("请分享一下", StringComparison.OrdinalIgnoreCase)
+            || value.StartsWith("请列出", StringComparison.OrdinalIgnoreCase)
+            || value.StartsWith("能否请你", StringComparison.OrdinalIgnoreCase)
+            || value.Contains("这样我能更好地帮助你总结", StringComparison.OrdinalIgnoreCase)
+            || value.Contains("这样我可以更清楚", StringComparison.OrdinalIgnoreCase)
+            || value.Contains("这样我可以更好地帮助", StringComparison.OrdinalIgnoreCase)
+            || value.Contains("你在这些周里完成了哪些关键任务或目标", StringComparison.OrdinalIgnoreCase)
+            || value.Contains("请分享", StringComparison.OrdinalIgnoreCase)
+            || value.Contains("请列出", StringComparison.OrdinalIgnoreCase)
+            || value.Contains("具体来说", StringComparison.OrdinalIgnoreCase)
+            || value.Contains("这样我可以", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool IsProgressSummaryEcho(string text)
+    {
+        var value = text?.Trim() ?? string.Empty;
+        if (string.IsNullOrWhiteSpace(value))
+            return false;
+
+        return value.StartsWith("最近你主要推进了：", StringComparison.OrdinalIgnoreCase)
+            || value.StartsWith("最近你主要推进了:", StringComparison.OrdinalIgnoreCase)
+            || value.StartsWith("你最近主要推进了：", StringComparison.OrdinalIgnoreCase)
+            || value.StartsWith("你最近主要推进了:", StringComparison.OrdinalIgnoreCase);
     }
 
     private static string StripPrefix(string text, string prefix)

@@ -1,3 +1,4 @@
+using SKAgent.Application.Modeling;
 using SKAgent.Application.Retrieval;
 using SKAgent.Core.Memory;
 using SKAgent.Core.Modeling;

@@ -482,6 +482,9 @@ public sealed class MemoryOrchestrator
         if (string.IsNullOrWhiteSpace(text))
             return string.Empty;
 
+        if (IsAssistantPromptLike(text))
+            return string.Empty;
+
         if (text.Contains("Unicode", StringComparison.OrdinalIgnoreCase)
             || text.Contains("\\u", StringComparison.OrdinalIgnoreCase)
             || text.Contains("编码", StringComparison.OrdinalIgnoreCase)
@@ -545,30 +548,47 @@ public sealed class MemoryOrchestrator
         IReadOnlyList<MemoryItem> longItems,
         string currentUserInput)
     {
-        var allSnippets = recentItems
+        var candidates = recentItems
             .Concat(longItems)
-            .Select(NormalizeProgressSnippet)
-            .Where(s =>
-                !string.IsNullOrWhiteSpace(s)
-                && !IsMetaRecallQuestion(s)
-                && !string.Equals(s.Trim(), currentUserInput?.Trim(), StringComparison.OrdinalIgnoreCase)
-                && !IsGreetingLike(s))
+            .Select(item => CreateProgressSnippetCandidate(item, currentUserInput))
+            .Where(c => c is not null)
+            .Cast<ProgressSnippetCandidate>()
+            .ToArray();
+
+        var allSnippets = candidates
+            .Select(c => c.Text)
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToArray();
 
-        var snippets = allSnippets
-            .Where(s => !IsLowValueProgressSnippet(s))
-            .OrderByDescending(GetProgressSnippetPriority)
-            .ThenByDescending(s => s.Length)
-            .Where(s => GetProgressSnippetPriority(s) >= 4)
-            .Take(2)
+        var rawSnippets = candidates
+            .Where(c => !IsLowValueProgressSnippet(c.Text))
+            .Where(c => c.Priority >= 4)
+            .OrderByDescending(c => c.Priority)
+            .ThenByDescending(c => c.Text.Length)
+            .Select(c => c.Text)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToList();
 
-        var milestoneSnippets = ExtractProgressMilestones(allSnippets)
-            .Where(s => !snippets.Contains(s, StringComparer.OrdinalIgnoreCase))
-            .Take(3);
+        var milestoneSnippets = ExtractProgressMilestones(allSnippets).ToArray();
+        var snippets = new List<string>();
 
-        snippets.AddRange(milestoneSnippets);
+        if (milestoneSnippets.Length > 0)
+        {
+            snippets.AddRange(milestoneSnippets.Take(3));
+
+            foreach (var snippet in rawSnippets.Where(s => GetProgressSnippetPriority(s) >= 8))
+            {
+                if (snippets.Count >= 3)
+                    break;
+
+                if (!snippets.Contains(snippet, StringComparer.OrdinalIgnoreCase))
+                    snippets.Add(snippet);
+            }
+        }
+        else
+        {
+            snippets.AddRange(rawSnippets.Take(2));
+        }
 
         if (snippets.Count == 0)
             return null;
@@ -643,9 +663,47 @@ public sealed class MemoryOrchestrator
         return text;
     }
 
+    private static ProgressSnippetCandidate? CreateProgressSnippetCandidate(MemoryItem item, string currentUserInput)
+    {
+        var text = NormalizeProgressSnippet(item);
+        if (string.IsNullOrWhiteSpace(text)
+            || IsMetaRecallQuestion(text)
+            || IsProgressSummaryEcho(text)
+            || string.Equals(text.Trim(), currentUserInput?.Trim(), StringComparison.OrdinalIgnoreCase)
+            || IsGreetingLike(text))
+        {
+            return null;
+        }
+
+        var role = item.Metadata?.TryGetValue("role", out var itemRole) == true
+            ? itemRole
+            : string.Empty;
+
+        var source = item.Metadata?.TryGetValue("source", out var itemSource) == true
+            ? itemSource
+            : string.Empty;
+
+        if (string.Equals(role, "assistant", StringComparison.OrdinalIgnoreCase)
+            && IsAssistantPromptLike(text))
+        {
+            return null;
+        }
+
+        return new ProgressSnippetCandidate(text, role, source, GetProgressSnippetPriority(text, role));
+    }
+
     private static int GetProgressSnippetPriority(string text)
+        => GetProgressSnippetPriority(text, string.Empty);
+
+    private static int GetProgressSnippetPriority(string text, string role)
     {
         var score = 0;
+        if (string.Equals(role, "user", StringComparison.OrdinalIgnoreCase)) score += 2;
+        if (string.Equals(role, "assistant", StringComparison.OrdinalIgnoreCase)
+            && ContainsAny(text, "完成", "已", "验收", "落地", "接入", "升级", "收口", "通过"))
+        {
+            score += 2;
+        }
         if (ContainsAny(text, "Week8", "Week8.5", "Week9")) score += 6;
         if (ContainsAny(text, "persona", "coach", "default")) score += 5;
         if (ContainsAny(text, "daily", "suggestion", "建议")) score += 5;
@@ -654,6 +712,7 @@ public sealed class MemoryOrchestrator
         if (ContainsAny(text, "幂等", "conversation", "pgvector", "回放", "JSONL")) score += 4;
         if (ContainsAny(text, "你好", "继续对话", "请问")) score -= 10;
         if (ContainsAny(text, "我想继续", "我想", "想继续")) score -= 8;
+        if (IsAssistantPromptLike(text)) score -= 30;
         if (ContainsAny(text, "系统刚才对输入做了转换处理", "解释了结果", "Unicode", "编码", "大写")) score -= 20;
         if (ContainsAny(text, "你刚刚说了", "你刚刚对我说的是")) score -= 20;
         return score;
@@ -680,13 +739,47 @@ public sealed class MemoryOrchestrator
 
         return value.StartsWith("你刚刚说了", StringComparison.OrdinalIgnoreCase)
             || value.StartsWith("你刚刚对我说的是", StringComparison.OrdinalIgnoreCase)
+            || IsProgressSummaryEcho(value)
             || value.StartsWith("我想继续", StringComparison.OrdinalIgnoreCase)
             || value.StartsWith("我想", StringComparison.OrdinalIgnoreCase)
+            || IsAssistantPromptLike(value)
             || value.Contains("系统刚才对输入做了转换处理", StringComparison.OrdinalIgnoreCase)
             || value.Contains("解释了结果", StringComparison.OrdinalIgnoreCase)
             || value.Contains("Unicode", StringComparison.OrdinalIgnoreCase)
             || value.Contains("编码", StringComparison.OrdinalIgnoreCase)
             || value.Contains("大写", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool IsAssistantPromptLike(string text)
+    {
+        var value = text?.Trim() ?? string.Empty;
+        if (string.IsNullOrWhiteSpace(value))
+            return false;
+
+        return value.StartsWith("好的，请", StringComparison.OrdinalIgnoreCase)
+            || value.StartsWith("请分享一下", StringComparison.OrdinalIgnoreCase)
+            || value.StartsWith("请列出", StringComparison.OrdinalIgnoreCase)
+            || value.StartsWith("能否请你", StringComparison.OrdinalIgnoreCase)
+            || value.Contains("这样我能更好地帮助你总结", StringComparison.OrdinalIgnoreCase)
+            || value.Contains("这样我可以更清楚", StringComparison.OrdinalIgnoreCase)
+            || value.Contains("这样我可以更好地帮助", StringComparison.OrdinalIgnoreCase)
+            || value.Contains("你在这些周里完成了哪些关键任务或目标", StringComparison.OrdinalIgnoreCase)
+            || value.Contains("请分享", StringComparison.OrdinalIgnoreCase)
+            || value.Contains("请列出", StringComparison.OrdinalIgnoreCase)
+            || value.Contains("具体来说", StringComparison.OrdinalIgnoreCase)
+            || value.Contains("这样我可以", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool IsProgressSummaryEcho(string text)
+    {
+        var value = text?.Trim() ?? string.Empty;
+        if (string.IsNullOrWhiteSpace(value))
+            return false;
+
+        return value.StartsWith("最近你主要推进了：", StringComparison.OrdinalIgnoreCase)
+            || value.StartsWith("最近你主要推进了:", StringComparison.OrdinalIgnoreCase)
+            || value.StartsWith("你最近主要推进了：", StringComparison.OrdinalIgnoreCase)
+            || value.StartsWith("你最近主要推进了:", StringComparison.OrdinalIgnoreCase);
     }
 
     private static IReadOnlyList<string> ExtractProgressMilestones(IReadOnlyList<string> snippets)
@@ -700,18 +793,34 @@ public sealed class MemoryOrchestrator
                 milestones.Add(summary);
         }
 
-        AddIfMatched("persona 切换与 coach 风格能力", "persona", "coach", "default");
-        AddIfMatched("Daily Suggestion 的生成、幂等与内容优化", "daily", "suggestion", "建议", "幂等", "conversation");
-        AddIfMatched("planner / chat / daily / embedding 的模型路由收敛", "model", "模型", "路由", "embedding", "planner", "chat", "daily");
-        AddIfMatched("rerank 接入与检索链路增强", "rerank", "检索", "vector");
+        AddIfMatched(
+            "persona 切换与 coach 风格能力",
+            "persona", "coach", "default", "人格", "风格能力", "persona 切换", "coach 风格", "切换");
+        AddIfMatched(
+            "Daily Suggestion 的生成、幂等与内容优化",
+            "daily", "suggestion", "建议", "幂等", "conversation", "每日建议", "建议质量", "内容优化", "生成");
+        AddIfMatched(
+            "planner / chat / daily / embedding 的模型路由收敛",
+            "model", "模型", "路由", "embedding", "planner", "chat", "daily", "模型选择", "配置驱动", "收敛");
+        AddIfMatched(
+            "rerank 接入与检索链路增强",
+            "rerank", "检索", "vector", "重排", "召回", "检索链路");
         AddIfMatched("真实环境验收、回归和事件链验证", "验收", "回归", "事件链", "JSONL", "回放");
-        AddIfMatched("Week8 到 Week8.5 的推进收口", "Week8", "Week8.5");
+
+        if (milestones.Count == 0)
+            AddIfMatched("Week8 到 Week8.5 的推进收口", "Week8", "Week8.5");
 
         return milestones.Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
     }
 
     private static bool ContainsAny(string text, params string[] values)
         => values.Any(v => text.Contains(v, StringComparison.OrdinalIgnoreCase));
+
+    private sealed record ProgressSnippetCandidate(
+        string Text,
+        string Role,
+        string Source,
+        int Priority);
 
     private static string TrimSingleLine(string text, int maxChars)
     {
