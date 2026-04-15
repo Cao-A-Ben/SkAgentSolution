@@ -47,6 +47,7 @@ using SKAgent.Infrastructure.Memory.Vector;
 using SKAgent.Infrastructure.Memory.Working;
 using SKAgent.Infrastructure.Observability;
 using SKAgent.Infrastructure.Profile;
+using SKAgent.Infrastructure.Retrieval;
 using SKAgent.Infrastructure.Suggestions;
 using SKAgent.SemanticKernel;
 
@@ -108,6 +109,7 @@ public static class DependencyInjection
 
         services.AddSingleton<IIntentRouter, IntentRouter>();
         services.AddSingleton<IQueryRewriter, QueryRewriter>();
+        services.AddSingleton<IProgressMilestoneProvider, GitProgressMilestoneProvider>();
         services.AddSingleton<RetrievalReranker>();
         services.AddSingleton<IRetrievalFusion, RetrievalFusion>();
         services.AddSingleton<IModelRouter, DefaultModelRouter>();

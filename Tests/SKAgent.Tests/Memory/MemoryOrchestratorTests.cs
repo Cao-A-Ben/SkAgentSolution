@@ -62,6 +62,7 @@ public sealed class MemoryOrchestratorTests
             longTerm,
             new TestFactStore(),
             new TestQueryRewriter(),
+            new TestProgressMilestoneProvider(),
             reranker,
             new RetrievalFusion(),
             new MemoryBudgeter());
@@ -178,6 +179,7 @@ public sealed class MemoryOrchestratorTests
             longTerm,
             new TestFactStore(),
             new TestQueryRewriter(),
+            new TestProgressMilestoneProvider(),
             reranker,
             new RetrievalFusion(),
             new MemoryBudgeter());
@@ -224,6 +226,84 @@ public sealed class MemoryOrchestratorTests
         Assert.DoesNotContain("你在这些周里完成了哪些关键任务或目标", candidate);
         Assert.DoesNotContain("你刚刚说了", candidate);
         Assert.DoesNotContain("最近你主要推进了：Week8 到 Week8.5 的推进收口", candidate);
+        Assert.Contains("persona 切换与 coach 风格能力", candidate);
+        Assert.Contains("Daily Suggestion 的生成、幂等与内容优化", candidate);
+        Assert.Contains("planner / chat / daily / embedding 的模型路由收敛", candidate);
+        Assert.DoesNotContain("Week8 到 Week8.5 的推进收口", candidate);
+    }
+
+    [Fact]
+    public async Task BuildAsync_ShouldBackfillProgressThemes_FromProvider_WhenMemoryIsTooGeneric()
+    {
+        var recentHistory = new TestRecentConversationHistory(
+            new TurnRecord
+            {
+                At = DateTimeOffset.UtcNow.AddMinutes(-12),
+                UserInput = "总结一下我最近在 Week8 到 Week8.5 主要推进了什么",
+                AssistantOutput = "好的，请分享一下你在 Week8 到 Week8.5 期间主要推进的任务和进展情况。",
+                Goal = "总结近期进展"
+            });
+
+        var longTerm = new TestLongTermMemory(
+            new MemoryItem(
+                "vec:generic:1",
+                MemoryLayer.LongTerm,
+                "相关历史助手回复摘要：最近你主要推进了：Week8 到 Week8.5 的推进收口。",
+                DateTimeOffset.UtcNow.AddMinutes(-5),
+                0.5,
+                new Dictionary<string, string> { ["route"] = "vector", ["role"] = "assistant" }));
+
+        var reranker = new RetrievalReranker(
+            new TestTextGenerationService("C1"),
+            new DefaultModelRouter(new ModelRoutingOptions()));
+
+        var orchestrator = new MemoryOrchestrator(
+            recentHistory,
+            new TestShortTermMemory(),
+            new TestWorkingMemoryStore(),
+            longTerm,
+            new TestFactStore(),
+            new TestQueryRewriter(),
+            new TestProgressMilestoneProvider(
+                "persona 切换与 coach 风格能力",
+                "Daily Suggestion 的生成、幂等与内容优化",
+                "planner / chat / daily / embedding 的模型路由收敛"),
+            reranker,
+            new RetrievalFusion(),
+            new MemoryBudgeter());
+
+        var run = new TestRunContext("总结一下我最近在 Week8 到 Week8.5 主要推进了什么");
+        run.ConversationState["retrieval_intents"] = RetrievalIntent.Recall;
+        run.ConversationState["retrieval_plan"] = new RetrievalPlan(
+            Routes: new[] { RetrievalRoute.RecentHistory, RetrievalRoute.Vector },
+            Budgets: new Dictionary<RetrievalRoute, int>
+            {
+                [RetrievalRoute.RecentHistory] = 1800,
+                [RetrievalRoute.Vector] = 4000
+            },
+            TopK: new Dictionary<RetrievalRoute, int>
+            {
+                [RetrievalRoute.RecentHistory] = 6,
+                [RetrievalRoute.Vector] = 8
+            },
+            RewriteQuery: false,
+            NeedClarification: false,
+            SafetyPolicy: null,
+            Rationale: "test");
+
+        await orchestrator.BuildAsync(
+            run,
+            new PersonaOptions
+            {
+                Name = "coach",
+                SystemPrompt = "You are a coach.",
+                PlannerHint = string.Empty,
+                Policy = new PersonaPolicy()
+            },
+            run.UserInput,
+            CancellationToken.None);
+
+        var candidate = Assert.IsType<string>(run.ConversationState["recall_answer_candidate"]);
         Assert.Contains("persona 切换与 coach 风格能力", candidate);
         Assert.Contains("Daily Suggestion 的生成、幂等与内容优化", candidate);
         Assert.Contains("planner / chat / daily / embedding 的模型路由收敛", candidate);
@@ -327,5 +407,18 @@ public sealed class MemoryOrchestratorTests
 
         public Task<string> GenerateAsync(TextGenerationRequest request, CancellationToken ct = default)
             => Task.FromResult(_output);
+    }
+
+    private sealed class TestProgressMilestoneProvider : IProgressMilestoneProvider
+    {
+        private readonly IReadOnlyList<string> _milestones;
+
+        public TestProgressMilestoneProvider(params string[] milestones)
+        {
+            _milestones = milestones;
+        }
+
+        public Task<IReadOnlyList<string>> GetMilestonesAsync(string conversationId, string userInput, CancellationToken ct = default)
+            => Task.FromResult(_milestones);
     }
 }

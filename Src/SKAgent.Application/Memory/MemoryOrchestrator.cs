@@ -23,6 +23,7 @@ public sealed class MemoryOrchestrator
     private readonly ILongTermMemory _long;
     private readonly IFactStore _facts;
     private readonly IQueryRewriter _queryRewriter;
+    private readonly IProgressMilestoneProvider _progressMilestoneProvider;
     private readonly RetrievalReranker _retrievalReranker;
     private readonly IRetrievalFusion _retrievalFusion;
     private readonly MemoryBudgeter _budgeter;
@@ -34,6 +35,7 @@ public sealed class MemoryOrchestrator
         ILongTermMemory longTerm,
         IFactStore facts,
         IQueryRewriter queryRewriter,
+        IProgressMilestoneProvider progressMilestoneProvider,
         RetrievalReranker retrievalReranker,
         IRetrievalFusion retrievalFusion,
         MemoryBudgeter budgeter)
@@ -44,6 +46,7 @@ public sealed class MemoryOrchestrator
         _long = longTerm;
         _facts = facts;
         _queryRewriter = queryRewriter;
+        _progressMilestoneProvider = progressMilestoneProvider;
         _retrievalReranker = retrievalReranker;
         _retrievalFusion = retrievalFusion;
         _budgeter = budgeter;
@@ -99,14 +102,14 @@ public sealed class MemoryOrchestrator
 
         if (routing.Intents.HasFlag(RetrievalIntent.Recall))
         {
-            var recallSummary = BuildRecallSummary(recentItems, longItems, userInput);
-            if (!string.IsNullOrWhiteSpace(recallSummary))
+            var recallSummary = await BuildRecallSummaryAsync(run.ConversationId, recentItems, longItems, userInput, ct);
+            if (!string.IsNullOrWhiteSpace(recallSummary?.Summary))
             {
-                run.ConversationState["recall_answer_candidate"] = recallSummary;
+                run.ConversationState["recall_answer_candidate"] = recallSummary!.Summary;
                 await run.EmitAsync("recall_summary_built", new
                 {
-                    source = IsProgressSummaryRequest(userInput) ? "recent_history+long_term" : "recent_history",
-                    preview = TrimSingleLine(recallSummary, 120)
+                    source = recallSummary.Source,
+                    preview = TrimSingleLine(recallSummary.Summary, 120)
                 }, ct);
             }
         }
@@ -496,16 +499,18 @@ public sealed class MemoryOrchestrator
         return text;
     }
 
-    private static string? BuildRecallSummary(
+    private async Task<RecallSummaryResult?> BuildRecallSummaryAsync(
+        string conversationId,
         IReadOnlyList<MemoryItem> recentItems,
         IReadOnlyList<MemoryItem> longItems,
-        string currentUserInput)
+        string currentUserInput,
+        CancellationToken ct)
     {
         if (recentItems.Count == 0 && longItems.Count == 0)
             return null;
 
         if (IsProgressSummaryRequest(currentUserInput))
-            return BuildProgressSummary(recentItems, longItems, currentUserInput);
+            return await BuildProgressSummaryAsync(conversationId, recentItems, longItems, currentUserInput, ct);
 
         var userQuote = recentItems
             .Where(i => i.Metadata?.TryGetValue("role", out var role) == true && role == "user")
@@ -526,27 +531,29 @@ public sealed class MemoryOrchestrator
         if (ShouldAnswerActionSummary(currentUserInput))
         {
             if (!string.IsNullOrWhiteSpace(assistantSummary))
-                return $"我刚才主要是{NormalizeAssistantSummary(assistantSummary)}";
+                return new RecallSummaryResult($"我刚才主要是{NormalizeAssistantSummary(assistantSummary)}", "recent_history");
 
             if (!string.IsNullOrWhiteSpace(userQuote))
-                return $"你刚刚对我说的是“{userQuote}”。";
+                return new RecallSummaryResult($"你刚刚对我说的是“{userQuote}”。", "recent_history");
 
             return null;
         }
 
         if (!string.IsNullOrWhiteSpace(userQuote))
-            return $"你刚刚说了“{userQuote}”。";
+            return new RecallSummaryResult($"你刚刚说了“{userQuote}”。", "recent_history");
 
         if (!string.IsNullOrWhiteSpace(assistantSummary))
-            return $"我刚才主要是{NormalizeAssistantSummary(assistantSummary)}";
+            return new RecallSummaryResult($"我刚才主要是{NormalizeAssistantSummary(assistantSummary)}", "recent_history");
 
         return null;
     }
 
-    private static string? BuildProgressSummary(
+    private async Task<RecallSummaryResult?> BuildProgressSummaryAsync(
+        string conversationId,
         IReadOnlyList<MemoryItem> recentItems,
         IReadOnlyList<MemoryItem> longItems,
-        string currentUserInput)
+        string currentUserInput,
+        CancellationToken ct)
     {
         var candidates = recentItems
             .Concat(longItems)
@@ -570,6 +577,18 @@ public sealed class MemoryOrchestrator
             .ToList();
 
         var milestoneSnippets = ExtractProgressMilestones(allSnippets).ToArray();
+        var usedGitMilestones = false;
+
+        if (milestoneSnippets.Length == 0)
+        {
+            milestoneSnippets = (await _progressMilestoneProvider.GetMilestonesAsync(conversationId, currentUserInput, ct))
+                .Where(m => !string.IsNullOrWhiteSpace(m))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToArray();
+
+            usedGitMilestones = milestoneSnippets.Length > 0;
+        }
+
         var snippets = new List<string>();
 
         if (milestoneSnippets.Length > 0)
@@ -585,6 +604,10 @@ public sealed class MemoryOrchestrator
                     snippets.Add(snippet);
             }
         }
+        else if (ContainsAny(currentUserInput, "Week8", "Week8.5"))
+        {
+            snippets.Add("Week8 到 Week8.5 的推进收口");
+        }
         else
         {
             snippets.AddRange(rawSnippets.Take(2));
@@ -593,7 +616,13 @@ public sealed class MemoryOrchestrator
         if (snippets.Count == 0)
             return null;
 
-        return $"最近你主要推进了：{string.Join("；", snippets.Take(3))}。";
+        var source = usedGitMilestones
+            ? "recent_history+long_term+git_history"
+            : "recent_history+long_term";
+
+        return new RecallSummaryResult(
+            $"最近你主要推进了：{string.Join("；", snippets.Take(3))}。",
+            source);
     }
 
     private static string StripLabel(string? text, string label)
@@ -819,9 +848,6 @@ public sealed class MemoryOrchestrator
             "rerank", "检索", "vector", "重排", "召回", "检索链路");
         AddIfMatched("真实环境验收、回归和事件链验证", "验收", "回归", "事件链", "JSONL", "回放");
 
-        if (milestones.Count == 0)
-            AddIfMatched("Week8 到 Week8.5 的推进收口", "Week8", "Week8.5");
-
         return milestones.Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
     }
 
@@ -834,6 +860,10 @@ public sealed class MemoryOrchestrator
         string Role,
         string Source,
         int Priority);
+
+    private sealed record RecallSummaryResult(
+        string Summary,
+        string Source);
 
     private static string TrimSingleLine(string text, int maxChars)
     {
