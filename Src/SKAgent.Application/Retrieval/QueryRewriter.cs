@@ -18,7 +18,6 @@ public sealed class QueryRewriter : IQueryRewriter
 
         if (intents.HasFlag(RetrievalIntent.Recall) && IsProgressSummaryRequest(normalized))
         {
-            queries.Add($"提取最近阶段推进的功能主题与里程碑：{normalized}");
             queries.Add($"提取与 persona、coach、Daily Suggestion、幂等、conversation 相关的进展：{normalized}");
             queries.Add($"提取与 planner、chat、daily、embedding、model routing、rerank 相关的进展：{normalized}");
         }

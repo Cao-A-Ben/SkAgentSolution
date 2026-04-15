@@ -556,16 +556,16 @@ public sealed class MemoryOrchestrator
             .ToArray();
 
         var allSnippets = candidates
-            .Select(c => c.Text)
+            .Select(c => c.MatchText)
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToArray();
 
         var rawSnippets = candidates
-            .Where(c => !IsLowValueProgressSnippet(c.Text))
+            .Where(c => !IsLowValueProgressSnippet(c.MatchText))
             .Where(c => c.Priority >= 4)
             .OrderByDescending(c => c.Priority)
-            .ThenByDescending(c => c.Text.Length)
-            .Select(c => c.Text)
+            .ThenByDescending(c => c.MatchText.Length)
+            .Select(c => c.DisplayText)
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToList();
 
@@ -648,12 +648,17 @@ public sealed class MemoryOrchestrator
 
     private static string NormalizeProgressSnippet(MemoryItem item)
     {
+        return BuildProgressSnippet(item, 96);
+    }
+
+    private static string BuildProgressSnippet(MemoryItem item, int maxChars)
+    {
         var text = item.Content ?? string.Empty;
         text = StripLabel(text, "最近用户原话：");
         text = StripLabel(text, "最近系统处理：");
         text = StripLabel(text, "相关历史用户原话：");
         text = StripLabel(text, "相关历史助手回复摘要：");
-        text = TrimSingleLine(text, 96).Trim().TrimEnd('。', '.', '!', '！', '?', '？');
+        text = TrimSingleLine(text, maxChars).Trim().TrimEnd('。', '.', '!', '！', '?', '？');
 
         if (text.StartsWith("[user]", StringComparison.OrdinalIgnoreCase))
             text = text["[user]".Length..].Trim();
@@ -665,15 +670,17 @@ public sealed class MemoryOrchestrator
 
     private static ProgressSnippetCandidate? CreateProgressSnippetCandidate(MemoryItem item, string currentUserInput)
     {
-        var text = NormalizeProgressSnippet(item);
-        if (string.IsNullOrWhiteSpace(text)
-            || IsMetaRecallQuestion(text)
-            || IsProgressSummaryEcho(text)
-            || string.Equals(text.Trim(), currentUserInput?.Trim(), StringComparison.OrdinalIgnoreCase)
-            || IsGreetingLike(text))
+        var matchText = BuildProgressSnippet(item, 320);
+        if (string.IsNullOrWhiteSpace(matchText)
+            || IsMetaRecallQuestion(matchText)
+            || IsProgressSummaryEcho(matchText)
+            || string.Equals(matchText.Trim(), currentUserInput?.Trim(), StringComparison.OrdinalIgnoreCase)
+            || IsGreetingLike(matchText))
         {
             return null;
         }
+
+        var displayText = TrimSingleLine(matchText, 120).Trim().TrimEnd('。', '.', '!', '！', '?', '？');
 
         var role = item.Metadata?.TryGetValue("role", out var itemRole) == true
             ? itemRole
@@ -684,12 +691,17 @@ public sealed class MemoryOrchestrator
             : string.Empty;
 
         if (string.Equals(role, "assistant", StringComparison.OrdinalIgnoreCase)
-            && IsAssistantPromptLike(text))
+            && IsAssistantPromptLike(matchText))
         {
             return null;
         }
 
-        return new ProgressSnippetCandidate(text, role, source, GetProgressSnippetPriority(text, role));
+        return new ProgressSnippetCandidate(
+            DisplayText: displayText,
+            MatchText: matchText,
+            Role: role,
+            Source: source,
+            Priority: GetProgressSnippetPriority(matchText, role));
     }
 
     private static int GetProgressSnippetPriority(string text)
@@ -817,7 +829,8 @@ public sealed class MemoryOrchestrator
         => values.Any(v => text.Contains(v, StringComparison.OrdinalIgnoreCase));
 
     private sealed record ProgressSnippetCandidate(
-        string Text,
+        string DisplayText,
+        string MatchText,
         string Role,
         string Source,
         int Priority);

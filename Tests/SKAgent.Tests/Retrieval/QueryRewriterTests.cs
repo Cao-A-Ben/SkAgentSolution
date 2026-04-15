@@ -17,7 +17,6 @@ public sealed class QueryRewriterTests
 
         Assert.Equal(3, queries.Count);
         Assert.Contains("总结一下我最近在 Week8 到 Week8.5 主要推进了什么", queries);
-        Assert.Contains(queries, q => q.Contains("功能主题与里程碑", StringComparison.OrdinalIgnoreCase));
         Assert.Contains(queries, q => q.Contains("persona、coach、Daily Suggestion、幂等、conversation", StringComparison.OrdinalIgnoreCase));
         Assert.Contains(queries, q => q.Contains("planner、chat、daily、embedding、model routing、rerank", StringComparison.OrdinalIgnoreCase));
     }
