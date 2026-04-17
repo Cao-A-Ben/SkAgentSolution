@@ -1,6 +1,8 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using SkAgent.Runtime.Runtime;
 using SKAgent.Core.Agent;
+using SKAgent.Core.Observability;
+using SKAgent.Core.Replay;
 using SKAgent.Host.Contracts;
 
 namespace SKAgent.Host.Controllers
@@ -16,14 +18,21 @@ namespace SKAgent.Host.Controllers
     {
         /// <summary>Agent 运行时服务，串联所有环节的总调度器。</summary>
         private readonly AgentRuntimeService _runtimeService;
+        private readonly IRunEventLogFactory _runEventLogFactory;
+        private readonly IReplayRunStore _replayRunStore;
 
         /// <summary>
         /// 初始化控制器。
         /// </summary>
         /// <param name="runtimeService">DI 注入的 AgentRuntimeService 实例。</param>
-        public AgentController(AgentRuntimeService runtimeService)
+        public AgentController(
+            AgentRuntimeService runtimeService,
+            IRunEventLogFactory runEventLogFactory,
+            IReplayRunStore replayRunStore)
         {
             _runtimeService = runtimeService;
+            _runEventLogFactory = runEventLogFactory;
+            _replayRunStore = replayRunStore;
         }
 
         /// <summary>
@@ -42,7 +51,16 @@ namespace SKAgent.Host.Controllers
                 ? v.ToString() : Guid.NewGuid().ToString("N");
 
             // 调用 AgentRuntimeService 执行完整流程
-            var run = await _runtimeService.RunAsync(conversationId, input, ct: ct);
+            var runId = Guid.NewGuid().ToString("N");
+            var eventLog = _runEventLogFactory.CreateAgentRunLog(runId);
+            var startedAtUtc = DateTimeOffset.UtcNow;
+            var run = await _runtimeService.RunAsync(
+                conversationId,
+                input,
+                runId: runId,
+                eventSink: eventLog.Sink,
+                ct: ct);
+            await _replayRunStore.SaveAsync(ToReplayRunRecord(run, eventLog.Path, startedAtUtc, DateTimeOffset.UtcNow), ct);
 
             // 返回匿名对象（早期版本格式）
             return Ok(new
@@ -85,7 +103,17 @@ namespace SKAgent.Host.Controllers
                 ? req.ConversationId : Guid.NewGuid().ToString("N");
 
             // 2. 调用运行时服务执行完整流程
-            var run = await _runtimeService.RunAsync(conversationId, req.Input, req.PersonaName, ct: ct);
+            var runId = Guid.NewGuid().ToString("N");
+            var eventLog = _runEventLogFactory.CreateAgentRunLog(runId);
+            var startedAtUtc = DateTimeOffset.UtcNow;
+            var run = await _runtimeService.RunAsync(
+                conversationId,
+                req.Input,
+                req.PersonaName,
+                runId,
+                eventLog.Sink,
+                ct);
+            await _replayRunStore.SaveAsync(ToReplayRunRecord(run, eventLog.Path, startedAtUtc, DateTimeOffset.UtcNow), ct);
 
             // 3. 从 ConversationState 中提取画像快照
             var profileSnapshot = run.ConversationState.TryGetValue("profile", out var p) ? p as Dictionary<string, string> : null;
@@ -108,6 +136,32 @@ namespace SKAgent.Host.Controllers
                     Error = s.Error
                 })]
             });
+        }
+
+        private static ReplayRunRecord ToReplayRunRecord(
+            SKAgent.Runtime.AgentRunContext run,
+            string eventLogPath,
+            DateTimeOffset startedAtUtc,
+            DateTimeOffset finishedAtUtc)
+            => new(
+                RunId: run.RunId,
+                Kind: "agent",
+                ConversationId: run.ConversationId,
+                Status: run.Status.ToString().ToLowerInvariant(),
+                PersonaName: run.ConversationState.TryGetValue("personaName", out var personaName) ? personaName as string : null,
+                Goal: string.IsNullOrWhiteSpace(run.Goal) ? null : run.Goal,
+                InputPreview: Trim(run.UserInput, 240),
+                FinalOutputPreview: Trim(run.FinalOutput, 240),
+                StartedAtUtc: startedAtUtc,
+                FinishedAtUtc: finishedAtUtc,
+                EventLogPath: eventLogPath);
+
+        private static string? Trim(string? value, int maxChars)
+        {
+            if (string.IsNullOrWhiteSpace(value))
+                return null;
+
+            return value.Length <= maxChars ? value : value[..maxChars] + "...";
         }
     }
 }

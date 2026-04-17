@@ -8,6 +8,7 @@ using SKAgent.Core.Modeling;
 using SKAgent.Core.Observability;
 using SKAgent.Core.Personas;
 using SKAgent.Core.Profile;
+using SKAgent.Core.Replay;
 using SKAgent.Core.Retrieval;
 using SKAgent.Core.Runtime;
 using SKAgent.Core.Suggestions;
@@ -30,6 +31,7 @@ public sealed class DailySuggestionService
     private readonly IShortTermMemory _shortTermMemory;
     private readonly IUserProfileStore _profileStore;
     private readonly PersonaManager _personaManager;
+    private readonly IReplayRunStore _replayRunStore;
     private readonly ISuggestionStore _suggestionStore;
     private readonly IConversationScopeResolver _conversationScopeResolver;
     private readonly ITextGenerationService _textGenerationService;
@@ -41,6 +43,7 @@ public sealed class DailySuggestionService
         IShortTermMemory shortTermMemory,
         IUserProfileStore profileStore,
         PersonaManager personaManager,
+        IReplayRunStore replayRunStore,
         ISuggestionStore suggestionStore,
         IConversationScopeResolver conversationScopeResolver,
         ITextGenerationService textGenerationService,
@@ -51,6 +54,7 @@ public sealed class DailySuggestionService
         _shortTermMemory = shortTermMemory;
         _profileStore = profileStore;
         _personaManager = personaManager;
+        _replayRunStore = replayRunStore;
         _suggestionStore = suggestionStore;
         _conversationScopeResolver = conversationScopeResolver;
         _textGenerationService = textGenerationService;
@@ -85,6 +89,8 @@ public sealed class DailySuggestionService
             "Generate one daily suggestion for today.",
             ct,
             eventLog.Sink);
+
+        var startedAtUtc = DateTimeOffset.UtcNow;
 
         await run.EmitAsync("daily_job_started", new
         {
@@ -182,6 +188,19 @@ public sealed class DailySuggestionService
                 created = true
             }, ct).ConfigureAwait(false);
 
+            await _replayRunStore.SaveAsync(new ReplayRunRecord(
+                RunId: run.RunId,
+                Kind: "daily",
+                ConversationId: resolvedConversationId,
+                Status: "completed",
+                PersonaName: selectedPersona.Persona.Name,
+                Goal: "Generate one daily suggestion for today.",
+                InputPreview: $"Daily suggestion for {targetDate:yyyy-MM-dd}",
+                FinalOutputPreview: TrimPreview(suggestion, 240),
+                StartedAtUtc: startedAtUtc,
+                FinishedAtUtc: DateTimeOffset.UtcNow,
+                EventLogPath: eventLog.Path), ct).ConfigureAwait(false);
+
             return new DailySuggestionResult(record, Created: true);
         }
         catch (Exception ex)
@@ -192,8 +211,29 @@ public sealed class DailySuggestionService
                 runId = run.RunId,
                 error = ex.Message
             }, ct).ConfigureAwait(false);
+
+            await _replayRunStore.SaveAsync(new ReplayRunRecord(
+                RunId: run.RunId,
+                Kind: "daily",
+                ConversationId: resolvedConversationId,
+                Status: "failed",
+                PersonaName: run.ConversationState.TryGetValue("personaName", out var storedPersonaName) ? storedPersonaName as string : targetPersona,
+                Goal: "Generate one daily suggestion for today.",
+                InputPreview: $"Daily suggestion for {targetDate:yyyy-MM-dd}",
+                FinalOutputPreview: TrimPreview(ex.Message, 240),
+                StartedAtUtc: startedAtUtc,
+                FinishedAtUtc: DateTimeOffset.UtcNow,
+                EventLogPath: eventLog.Path), ct).ConfigureAwait(false);
             throw;
         }
+    }
+
+    private static string? TrimPreview(string? value, int maxChars)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+            return null;
+
+        return value.Length <= maxChars ? value : value[..maxChars] + "...";
     }
 
     private async Task<string?> ResolveConversationIdAsync(DailySuggestionOptions options, string? conversationId, CancellationToken ct)
@@ -320,7 +360,7 @@ Requirements:
         if (ContainsAny(joined, "week8", "Week8", "验收", "acceptance", "/api/suggestions", "runbook"))
         {
             return string.Equals(persona.Name, "coach", StringComparison.OrdinalIgnoreCase)
-                ? "今天先整理 Week8 已验证通过的结果，再挑一个最关键的优化点继续推进，并补一次新的建议生成验证。"
+                ? "今天先整理 Week8 已验证通过的结果，再收敛成一个最小可执行动作继续推进，并补一次新的建议生成验证。"
                 : "今天先整理 Week8 的验收结论与下一步优化项，再补一次新的建议生成验证。";
         }
 

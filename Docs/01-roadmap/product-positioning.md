@@ -192,10 +192,10 @@ SkAgent 已经开始建立以下高价值能力：
 - Week7：Memory、Intent Router、pgvector、多路融合
 - Week8：Daily Suggestion Job
 - Week8.5：多模型适配层
-- Week9：UI 回放 + 语音对话 MVP
-- Week10：Reviewer + Repair Plan
-- Week11：MCP 外部系统
-- Week12：领域 Skills + 合规 + Demo 收官
+- Week9：独立前端 Replay UI
+- Week10：Voice 对话 MVP
+- Week11：Reviewer + Repair Plan
+- Week12：MCP / Skills / Demo 收口
 
 这一阶段的目标不是做市场壳，而是把 SkAgent 的核心 runtime 做到可展示、可复现、可审计。
 

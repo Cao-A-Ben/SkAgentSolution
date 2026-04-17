@@ -1,6 +1,22 @@
 @SKAgent.Host_HostAddress = http://localhost:5192
+@ReplayRunId = 245cc2f5b1de4daa965d9eebcd36a3dc
 
-GET {{SKAgent.Host_HostAddress}}/weatherforecast/
+GET {{SKAgent.Host_HostAddress}}/api/replay/runs
+Accept: application/json
+
+###
+
+GET {{SKAgent.Host_HostAddress}}/api/replay/runs/{{ReplayRunId}}
+Accept: application/json
+
+###
+
+GET {{SKAgent.Host_HostAddress}}/api/replay/runs/{{ReplayRunId}}/events
+Accept: application/json
+
+###
+
+GET {{SKAgent.Host_HostAddress}}/api/replay/suggestions
 Accept: application/json
 
 ###

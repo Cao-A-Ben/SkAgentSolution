@@ -12,6 +12,7 @@ using SKAgent.Application.Modeling;
 using SKAgent.Application.Persona;
 using SKAgent.Application.Profile;
 using SKAgent.Application.Prompt;
+using SKAgent.Application.Replay;
 using SKAgent.Application.Reflection;
 using SKAgent.Application.Retrieval;
 using SKAgent.Application.Runtime;
@@ -30,6 +31,7 @@ using SKAgent.Core.Observability;
 using SKAgent.Core.Personas;
 using SKAgent.Core.Planning;
 using SKAgent.Core.Profile;
+using SKAgent.Core.Replay;
 using SKAgent.Core.Protocols.MCP;
 using SKAgent.Core.Reflection;
 using SKAgent.Core.Retrieval;
@@ -47,6 +49,7 @@ using SKAgent.Infrastructure.Memory.Vector;
 using SKAgent.Infrastructure.Memory.Working;
 using SKAgent.Infrastructure.Observability;
 using SKAgent.Infrastructure.Profile;
+using SKAgent.Infrastructure.Replay;
 using SKAgent.Infrastructure.Retrieval;
 using SKAgent.Infrastructure.Suggestions;
 using SKAgent.SemanticKernel;
@@ -115,6 +118,7 @@ public static class DependencyInjection
         services.AddSingleton<IModelRouter, DefaultModelRouter>();
         services.AddSingleton<ITextGenerationService, SemanticKernelTextGenerationService>();
         services.AddSingleton<IRunEventLogFactory, JsonlRunEventLogFactory>();
+        services.AddSingleton<ReplayQueryService>();
 
         services.AddSingleton<PromptComposer>();
         services.AddSingleton<IPlanRequestFactory, DefaultPlanRequestFactory>();
@@ -133,6 +137,7 @@ public static class DependencyInjection
             services.AddSingleton<IRecentConversationHistory, ShortTermRecentConversationHistory>();
             services.AddSingleton<ILongTermMemory, NoOpLongTermMemory>();
             services.AddSingleton<ISuggestionStore, InMemorySuggestionStore>();
+            services.AddSingleton<IReplayRunStore, InMemoryReplayRunStore>();
             services.AddSingleton<IConversationScopeResolver, NullConversationScopeResolver>();
         }
         else
@@ -148,6 +153,7 @@ public static class DependencyInjection
             services.AddSingleton<IVectorStore, PgVectorStore>();
             services.AddSingleton<ILongTermMemory, PgLongTermMemory>();
             services.AddSingleton<ISuggestionStore, SqlSuggestionStore>();
+            services.AddSingleton<IReplayRunStore, SqlReplayRunStore>();
             services.AddSingleton<IConversationScopeResolver, LatestConversationScopeResolver>();
         }
 

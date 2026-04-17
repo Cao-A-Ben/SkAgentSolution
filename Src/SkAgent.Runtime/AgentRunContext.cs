@@ -34,7 +34,7 @@ namespace SKAgent.Runtime
         /// <summary>
         /// 本次运行的唯一标识 ID，用于追踪和审计。
         /// </summary>
-        public string RunId { get; } = Guid.NewGuid().ToString("N");
+        public string RunId { get; }
 
         /// <summary>
         /// 会话唯一标识 ID，用于关联短期记忆和用户画像。
@@ -156,10 +156,11 @@ namespace SKAgent.Runtime
         /// <param name="context">Root AgentContext，包含用户原始输入。</param>
         /// <param name="conversationId">会话唯一标识 ID。</param>
         /// <param name="eventSink">事件输出端，可选。</param>
-        public AgentRunContext(AgentContext context, string conversationId, IRunEventSink? eventSink = null)
+        public AgentRunContext(AgentContext context, string conversationId, string? runId = null, IRunEventSink? eventSink = null)
         {
             Root = context ?? throw new ArgumentNullException(nameof(context));
             ConversationId = conversationId;
+            RunId = string.IsNullOrWhiteSpace(runId) ? Guid.NewGuid().ToString("N") : runId.Trim();
             UserInput = context.Input;
             if (eventSink != null)
                 this.EventSink = eventSink;

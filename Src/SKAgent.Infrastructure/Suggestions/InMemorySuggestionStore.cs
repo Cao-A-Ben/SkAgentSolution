@@ -14,6 +14,13 @@ public sealed class InMemorySuggestionStore : ISuggestionStore
         return Task.FromResult(record);
     }
 
+    public Task<SuggestionRecord?> GetByRunIdAsync(string runId, CancellationToken ct = default)
+    {
+        ct.ThrowIfCancellationRequested();
+        var record = _store.Values.FirstOrDefault(x => string.Equals(x.RunId, runId, StringComparison.OrdinalIgnoreCase));
+        return Task.FromResult(record);
+    }
+
     public Task SaveAsync(SuggestionRecord record, CancellationToken ct = default)
     {
         ct.ThrowIfCancellationRequested();

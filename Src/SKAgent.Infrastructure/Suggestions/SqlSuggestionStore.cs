@@ -43,6 +43,35 @@ public sealed class SqlSuggestionStore : ISuggestionStore
         return Map(reader);
     }
 
+    public async Task<SuggestionRecord?> GetByRunIdAsync(string runId, CancellationToken ct = default)
+    {
+        await using var conn = await _dataSource.OpenConnectionAsync(ct).ConfigureAwait(false);
+        await using var cmd = conn.CreateCommand();
+        cmd.CommandText =
+        """
+        SELECT suggestion_date,
+               suggestion,
+               run_id,
+               conversation_id,
+               persona_name,
+               profile_hash,
+               prompt_hash,
+               created_at,
+               event_log_path
+        FROM daily_suggestions
+        WHERE run_id = @run_id
+        LIMIT 1;
+        """;
+
+        cmd.Parameters.AddWithValue("run_id", runId);
+
+        await using var reader = await cmd.ExecuteReaderAsync(ct).ConfigureAwait(false);
+        if (!await reader.ReadAsync(ct).ConfigureAwait(false))
+            return null;
+
+        return Map(reader);
+    }
+
     public async Task SaveAsync(SuggestionRecord record, CancellationToken ct = default)
     {
         await using var conn = await _dataSource.OpenConnectionAsync(ct).ConfigureAwait(false);

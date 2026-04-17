@@ -53,7 +53,9 @@ namespace SKAgent.Application.Prompt
                 charBudget,
                 layersUsed,
                 systemChars = system.Length,
-                userChars = user.Length
+                userChars = user.Length,
+                systemText = system,
+                userText = user
             }, ct);
 
             return new ComposedPrompt(target, system, user, hash, charBudget, layersUsed);

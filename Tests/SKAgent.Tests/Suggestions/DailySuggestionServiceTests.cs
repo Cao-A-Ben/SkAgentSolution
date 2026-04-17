@@ -8,6 +8,7 @@ using SKAgent.Core.Modeling;
 using SKAgent.Core.Observability;
 using SKAgent.Core.Personas;
 using SKAgent.Core.Profile;
+using SKAgent.Core.Replay;
 using SKAgent.Core.Runtime;
 using SKAgent.Core.Suggestions;
 
@@ -25,6 +26,7 @@ public sealed class DailySuggestionServiceTests
             new TestShortTermMemory(),
             new TestUserProfileStore(),
             new PersonaManager(new TestPersonaProvider(), new TestConversationPersonaStore()),
+            new TestReplayRunStore(),
             store,
             new TestConversationScopeResolver("conv-1"),
             textGeneration,
@@ -64,6 +66,7 @@ public sealed class DailySuggestionServiceTests
             new TestShortTermMemory(),
             new TestUserProfileStore(),
             new PersonaManager(new TestPersonaProvider(), new TestConversationPersonaStore()),
+            new TestReplayRunStore(),
             store,
             new TestConversationScopeResolver("conv-1"),
             textGeneration,
@@ -118,6 +121,7 @@ public sealed class DailySuggestionServiceTests
                 ["current_focus"] = "Finish Week8 and improve daily suggestion quality"
             }),
             new PersonaManager(new TestPersonaProvider(), new TestConversationPersonaStore()),
+            new TestReplayRunStore(),
             new TestSuggestionStore(),
             new TestConversationScopeResolver("conv-2"),
             new TestTextGenerationService("Work on the Week8 suggestion prompt today."),
@@ -170,6 +174,7 @@ public sealed class DailySuggestionServiceTests
                 }),
             new TestUserProfileStore(new Dictionary<string, string>()),
             new PersonaManager(new TestPersonaProvider(), new TestConversationPersonaStore()),
+            new TestReplayRunStore(),
             new TestSuggestionStore(),
             new TestConversationScopeResolver("conv-3"),
             new TestTextGenerationService("Today refine the next actionable step."),
@@ -209,6 +214,7 @@ public sealed class DailySuggestionServiceTests
                 ["current_focus"] = "Week8.x persona coach"
             }),
             new PersonaManager(new TestPersonaProvider(), new TestConversationPersonaStore()),
+            new TestReplayRunStore(),
             new TestSuggestionStore(),
             new TestConversationScopeResolver("conv-coach"),
             new TestTextGenerationService("今天先把 Week8.x 的 coach persona 验收跑完，再继续推进下一步。"),
@@ -290,8 +296,11 @@ public sealed class DailySuggestionServiceTests
         public Task<SuggestionRecord?> GetAsync(DateOnly date, string conversationId, CancellationToken ct = default)
         {
             _store.TryGetValue(Key(date, conversationId), out var record);
-            return Task.FromResult(record);
+            return Task.FromResult<SuggestionRecord?>(record);
         }
+
+        public Task<SuggestionRecord?> GetByRunIdAsync(string runId, CancellationToken ct = default)
+            => Task.FromResult<SuggestionRecord?>(_store.Values.FirstOrDefault(x => x.RunId == runId));
 
         public Task SaveAsync(SuggestionRecord record, CancellationToken ct = default)
         {
@@ -318,6 +327,17 @@ public sealed class DailySuggestionServiceTests
             => Task.FromResult<string?>(_conversationId);
     }
 
+    private sealed class TestReplayRunStore : IReplayRunStore
+    {
+        public Task SaveAsync(ReplayRunRecord record, CancellationToken ct = default) => Task.CompletedTask;
+
+        public Task<ReplayRunRecord?> GetAsync(string runId, CancellationToken ct = default)
+            => Task.FromResult<ReplayRunRecord?>(null);
+
+        public Task<IReadOnlyList<ReplayRunRecord>> ListRecentAsync(int take = 30, CancellationToken ct = default)
+            => Task.FromResult<IReadOnlyList<ReplayRunRecord>>(Array.Empty<ReplayRunRecord>());
+    }
+
     private sealed class TestTextGenerationService : ITextGenerationService
     {
         private readonly string _output;
@@ -338,6 +358,9 @@ public sealed class DailySuggestionServiceTests
 
     private sealed class TestRunEventLogFactory : IRunEventLogFactory
     {
+        public RunEventLogHandle CreateAgentRunLog(string runId)
+            => new(new NullSink(), $"test-events/{runId}.jsonl");
+
         public RunEventLogHandle CreateDailySuggestionLog(DateOnly date)
             => new(new NullSink(), $"test-events/{date:yyyyMMdd}.jsonl");
     }

@@ -6,5 +6,7 @@ public sealed record RunEventLogHandle(
 
 public interface IRunEventLogFactory
 {
+    RunEventLogHandle CreateAgentRunLog(string runId);
+
     RunEventLogHandle CreateDailySuggestionLog(DateOnly date);
 }
