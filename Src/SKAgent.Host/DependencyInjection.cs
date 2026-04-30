@@ -18,6 +18,7 @@ using SKAgent.Application.Retrieval;
 using SKAgent.Application.Runtime;
 using SKAgent.Application.Tools.Invoker;
 using SKAgent.Application.Tools.Registry;
+using SKAgent.Application.Voice;
 using SKAgent.Core.Agent;
 using SKAgent.Core.Chat;
 using SKAgent.Core.Embedding;
@@ -39,7 +40,9 @@ using SKAgent.Core.Routing;
 using SKAgent.Core.Runtime;
 using SKAgent.Core.Suggestions;
 using SKAgent.Core.Tools.Abstractions;
+using SKAgent.Core.Voice;
 using SKAgent.Host.Boostrap;
+using SKAgent.Host.Voice;
 using SKAgent.Infrastructure.Mcp;
 using SKAgent.Infrastructure.Memory.Embedding;
 using SKAgent.Infrastructure.Memory.Facts;
@@ -52,6 +55,7 @@ using SKAgent.Infrastructure.Profile;
 using SKAgent.Infrastructure.Replay;
 using SKAgent.Infrastructure.Retrieval;
 using SKAgent.Infrastructure.Suggestions;
+using SKAgent.Infrastructure.Voice;
 using SKAgent.SemanticKernel;
 
 namespace SKAgent.Host;
@@ -68,6 +72,53 @@ public static class DependencyInjection
         services.AddSingleton(sp => sp.GetRequiredService<Microsoft.Extensions.Options.IOptions<DailySuggestionOptions>>().Value);
         services.Configure<ModelRoutingOptions>(configuration.GetSection(ModelRoutingOptions.SectionName));
         services.AddSingleton(sp => sp.GetRequiredService<Microsoft.Extensions.Options.IOptions<ModelRoutingOptions>>().Value);
+        services.Configure<VoiceRuntimeOptions>(configuration.GetSection(VoiceRuntimeOptions.SectionName));
+        services.AddSingleton(sp => sp.GetRequiredService<Microsoft.Extensions.Options.IOptions<VoiceRuntimeOptions>>().Value);
+        services.Configure<VoiceGatewayOptions>(configuration.GetSection(VoiceGatewayOptions.SectionName));
+        services.AddSingleton(sp => sp.GetRequiredService<Microsoft.Extensions.Options.IOptions<VoiceGatewayOptions>>().Value);
+        services.Configure<KokoroTtsOptions>(configuration.GetSection(KokoroTtsOptions.SectionName));
+        services.AddSingleton(sp => sp.GetRequiredService<Microsoft.Extensions.Options.IOptions<KokoroTtsOptions>>().Value);
+
+        services.AddHttpClient<OpenAiCompatibleVoiceGateway>((sp, client) =>
+        {
+            var voiceGateway = sp.GetRequiredService<VoiceGatewayOptions>();
+            var baseUrl = string.IsNullOrWhiteSpace(voiceGateway.BaseUrl)
+                ? configuration["OpenAI:BaseUrl"]
+                : voiceGateway.BaseUrl;
+            var apiKey = string.IsNullOrWhiteSpace(voiceGateway.ApiKey)
+                ? configuration["OpenAI:ApiKey"]
+                : voiceGateway.ApiKey;
+
+            if (!string.IsNullOrWhiteSpace(baseUrl))
+            {
+                client.BaseAddress = new Uri(EnsureTrailingSlash(baseUrl));
+            }
+
+            if (!string.IsNullOrWhiteSpace(apiKey))
+            {
+                client.DefaultRequestHeaders.Authorization =
+                    new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", apiKey);
+            }
+
+            client.Timeout = TimeSpan.FromSeconds(Math.Max(30, voiceGateway.TimeoutSeconds));
+        });
+        services.AddHttpClient<KokoroVoiceSynthesisService>((sp, client) =>
+        {
+            var options = sp.GetRequiredService<KokoroTtsOptions>();
+
+            if (!string.IsNullOrWhiteSpace(options.BaseUrl))
+            {
+                client.BaseAddress = new Uri(EnsureTrailingSlash(options.BaseUrl));
+            }
+
+            if (!string.IsNullOrWhiteSpace(options.ApiKey))
+            {
+                client.DefaultRequestHeaders.Authorization =
+                    new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", options.ApiKey);
+            }
+
+            client.Timeout = TimeSpan.FromSeconds(Math.Max(60, options.TimeoutSeconds));
+        });
 
         services.AddSingleton<SKChatAgent>();
         services.AddSingleton<McpAgent>();
@@ -117,8 +168,39 @@ public static class DependencyInjection
         services.AddSingleton<IRetrievalFusion, RetrievalFusion>();
         services.AddSingleton<IModelRouter, DefaultModelRouter>();
         services.AddSingleton<ITextGenerationService, SemanticKernelTextGenerationService>();
+        services.AddScoped<IVoiceAgentRuntime, AgentVoiceRuntimeAdapter>();
+        services.AddScoped<IVoiceTranscriptionService>(sp =>
+        {
+            var modelRouting = sp.GetRequiredService<ModelRoutingOptions>();
+            var route = modelRouting.VoiceStt
+                ?? throw new InvalidOperationException("The configured voice STT route is missing.");
+            var provider = NormalizeProvider(route.Provider, "voice STT");
+
+            return provider switch
+            {
+                "openai-compatible" => sp.GetRequiredService<OpenAiCompatibleVoiceGateway>(),
+                _ => throw new InvalidOperationException(
+                    $"Unsupported voice STT provider '{route.Provider}'.")
+            };
+        });
+        services.AddScoped<IVoiceSynthesisService>(sp =>
+        {
+            var modelRouting = sp.GetRequiredService<ModelRoutingOptions>();
+            var route = modelRouting.VoiceTts
+                ?? throw new InvalidOperationException("The configured voice TTS route is missing.");
+            var provider = NormalizeProvider(route.Provider, "voice TTS");
+
+            return provider switch
+            {
+                "openai-compatible" => sp.GetRequiredService<OpenAiCompatibleVoiceGateway>(),
+                "kokoro-local" => sp.GetRequiredService<KokoroVoiceSynthesisService>(),
+                _ => throw new InvalidOperationException(
+                    $"Unsupported voice TTS provider '{route.Provider}'.")
+            };
+        });
         services.AddSingleton<IRunEventLogFactory, JsonlRunEventLogFactory>();
         services.AddSingleton<ReplayQueryService>();
+        services.AddScoped<VoiceRuntimeService>();
 
         services.AddSingleton<PromptComposer>();
         services.AddSingleton<IPlanRequestFactory, DefaultPlanRequestFactory>();
@@ -161,5 +243,24 @@ public static class DependencyInjection
         services.AddHostedService<SKAgent.Host.HostedServices.DailySuggestionJob>();
 
         return services;
+    }
+
+    /// <summary>
+    /// HttpClient.BaseAddress 使用目录语义；这里统一补尾斜杠，避免相对地址被错误拼接。
+    /// </summary>
+    private static string EnsureTrailingSlash(string value)
+        => value.EndsWith("/", StringComparison.Ordinal) ? value : value + "/";
+
+    /// <summary>
+    /// 语音 provider 名称属于关键配置，留空时直接抛出明确异常。
+    /// </summary>
+    private static string NormalizeProvider(string? value, string area)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            throw new InvalidOperationException($"The configured {area} provider is missing.");
+        }
+
+        return value.Trim().ToLowerInvariant();
     }
 }

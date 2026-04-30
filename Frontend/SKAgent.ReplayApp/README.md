@@ -22,6 +22,14 @@ Override the host target when needed:
 SKAGENT_HOST=http://127.0.0.1:5192 npm run dev
 ```
 
+If you prefer the browser to call the Host directly instead of using the Vite proxy:
+
+```bash
+VITE_API_BASE_URL=https://127.0.0.1:7108 npm run dev
+```
+
+The Host now allows local Replay UI origins through CORS, but your browser still needs to trust the ASP.NET development certificate for `https://127.0.0.1:7108`.
+
 ## Manual checks
 
 After starting the Host and the Vite app, use:

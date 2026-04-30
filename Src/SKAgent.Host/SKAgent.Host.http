@@ -1,5 +1,6 @@
 @SKAgent.Host_HostAddress = http://localhost:5192
 @ReplayRunId = 245cc2f5b1de4daa965d9eebcd36a3dc
+@VoiceSamplePath = /absolute/path/to/sample.wav
 
 GET {{SKAgent.Host_HostAddress}}/api/replay/runs
 Accept: application/json
@@ -18,5 +19,34 @@ Accept: application/json
 
 GET {{SKAgent.Host_HostAddress}}/api/replay/suggestions
 Accept: application/json
+
+###
+
+# @VoiceSamplePath 需要替换为本机真实音频文件路径。
+POST {{SKAgent.Host_HostAddress}}/api/voice/run
+Content-Type: multipart/form-data; boundary=VoiceBoundary
+
+--VoiceBoundary
+Content-Disposition: form-data; name="conversationId"
+
+voice-demo-conversation
+--VoiceBoundary
+Content-Disposition: form-data; name="personaName"
+
+default
+--VoiceBoundary
+Content-Disposition: form-data; name="voice"
+
+af_bella
+--VoiceBoundary
+Content-Disposition: form-data; name="format"
+
+mp3
+--VoiceBoundary
+Content-Disposition: form-data; name="audio"; filename="sample.wav"
+Content-Type: audio/wav
+
+< {{VoiceSamplePath}}
+--VoiceBoundary--
 
 ###

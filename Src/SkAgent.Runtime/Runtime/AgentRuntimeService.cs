@@ -109,6 +109,7 @@ namespace SkAgent.Runtime.Runtime
             string? requestedPersonaName = null,
             string? runId = null,
             IRunEventSink? eventSink = null,
+            long initialEventSeq = 0,
             CancellationToken ct = default)
         {
 
@@ -124,7 +125,12 @@ namespace SkAgent.Runtime.Runtime
                 agentContext.State["requestedPersonaName"] = requestedPersonaName.Trim();
 
             // 2. 创建 AgentRunContext（SSOT），封装本次运行的所有状态
-            var run = new AgentRunContext(agentContext, conversationId, runId, eventSink);
+            var run = new AgentRunContext(
+                agentContext,
+                conversationId,
+                runId,
+                eventSink,
+                initialEventSeq);
 
             //规划开始
             await run.EmitAsync("run_started", new { input = run.UserInput }, run.Root.CancellationToken);

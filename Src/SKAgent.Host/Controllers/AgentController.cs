@@ -112,6 +112,7 @@ namespace SKAgent.Host.Controllers
                 req.PersonaName,
                 runId,
                 eventLog.Sink,
+                initialEventSeq: 0,
                 ct);
             await _replayRunStore.SaveAsync(ToReplayRunRecord(run, eventLog.Path, startedAtUtc, DateTimeOffset.UtcNow), ct);
 

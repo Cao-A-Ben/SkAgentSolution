@@ -8,7 +8,7 @@
 - Week7 已完成：Intent Router、Memory Fusion、pgvector、Recent Recall 和事件链路已通过验收。
 - Week8.x 已验证通过：`default` 与 `coach` 双 persona 已可切换，且 `coach` 在对话与 Daily Suggestion 中已体现推进式风格。
 - Week8.5 已验证通过：`planner / chat / daily / embedding / rerank` 的模型路由与 progress recall 已收口。
-- 当前优先级是进入 Week9：建设独立前端 Replay UI；当前 replay 已升级为 `PostgreSQL + JSONL` 混合架构，Voice 将在 Week10 再进入真实实施。
+- 当前优先级已切到 Week10：在 Week9 Replay UI 验收完成之后，继续建设 Voice 对话 MVP；当前 replay 已升级为 `PostgreSQL + JSONL` 混合架构，Week10 正在接入 `STT -> Runtime -> TTS` 最小闭环。
 - 关于为什么继续当前项目、它与 agent / claw-like 产品的关系、以及未来如何扩展，可参见 [Product Positioning](Docs/01-roadmap/product-positioning.md) 文档。
 
 ## 快速开始
@@ -70,6 +70,7 @@ npm run dev
 - [Observability & Replay](Docs/03-modules/observability-replay.md)
 - [Model Routing](Docs/03-modules/model-routing.md)
 - [Replay UI](Docs/03-modules/replay-ui.md)
+- [Voice Runtime](Docs/03-modules/voice-runtime.md)
 - [Tools & MCP](Docs/03-modules/tools-mcp.md)
 
 ### 治理与归档
@@ -112,6 +113,25 @@ npm run dev
 Week9 收口与最终验收说明见：
 
 - [Replay UI](Docs/03-modules/replay-ui.md)
+
+## Week10 当前实现口径
+
+- 已新增 `POST /api/voice/run`
+- 当前语音链路为：
+  - 音频上传
+  - `voice_stt`
+  - 复用现有 Agent Runtime
+  - `voice_tts`
+- 当前默认实现为 `openai-compatible`
+- 上层仍使用 provider-neutral 抽象，因此后续可替换为本地、腾讯、Google 等实现
+- `VoiceGateway` 支持独立配置语音网关的 `BaseUrl / ApiKey`，未配置时回退到通用 `OpenAI` 配置
+- 当前真实联调已确认：主机能正确对外调用语音 provider，并在 provider 不可用时返回标准 `502 problem+json`
+- 当前默认 `voice_stt` 已切到本地 `faster-whisper-server`（`http://127.0.0.1:8000/v1`）
+- 当前默认 `voice_tts` 已切到 `Kokoro`，当前配置地址为 `http://129.226.84.235:8880`
+
+Week10 当前说明见：
+
+- [Voice Runtime](Docs/03-modules/voice-runtime.md)
 
 ## 当前可直接调用的 Week8.x 入口
 

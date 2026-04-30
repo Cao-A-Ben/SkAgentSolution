@@ -32,8 +32,8 @@ public sealed class DefaultModelRouter : IModelRouter
             ModelPurpose.Daily => new ModelSelection(purpose, "openai-compatible", "gpt-4o-mini", "daily_balanced"),
             ModelPurpose.Embedding => new ModelSelection(purpose, "local", "hash-embedding-v1-128", "offline_default"),
             ModelPurpose.Rerank => new ModelSelection(purpose, "openai-compatible", "gpt-4o-mini", "rerank_default"),
-            ModelPurpose.VoiceStt => new ModelSelection(purpose, "openai-compatible", "gpt-4o-mini", "voice_stt_default"),
-            ModelPurpose.VoiceTts => new ModelSelection(purpose, "openai-compatible", "gpt-4o-mini", "voice_tts_default"),
+            ModelPurpose.VoiceStt => new ModelSelection(purpose, "openai-compatible", "Systran/faster-whisper-small", "voice_stt_local_default"),
+            ModelPurpose.VoiceTts => new ModelSelection(purpose, "kokoro-local", "tts-1", "voice_tts_local_default"),
             _ => new ModelSelection(purpose, "openai-compatible", "gpt-4o-mini", "default")
         };
 

@@ -56,6 +56,7 @@ namespace SKAgent.Host.Controllers
                 request.PersonaName,
                 runId,
                 sink,
+                initialEventSeq: 0,
                 HttpContext.RequestAborted);
             await _replayRunStore.SaveAsync(new ReplayRunRecord(
                 RunId: run.RunId,

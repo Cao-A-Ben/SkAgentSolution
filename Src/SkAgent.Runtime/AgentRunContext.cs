@@ -156,7 +156,12 @@ namespace SKAgent.Runtime
         /// <param name="context">Root AgentContext，包含用户原始输入。</param>
         /// <param name="conversationId">会话唯一标识 ID。</param>
         /// <param name="eventSink">事件输出端，可选。</param>
-        public AgentRunContext(AgentContext context, string conversationId, string? runId = null, IRunEventSink? eventSink = null)
+        public AgentRunContext(
+            AgentContext context,
+            string conversationId,
+            string? runId = null,
+            IRunEventSink? eventSink = null,
+            long initialEventSeq = 0)
         {
             Root = context ?? throw new ArgumentNullException(nameof(context));
             ConversationId = conversationId;
@@ -164,6 +169,7 @@ namespace SKAgent.Runtime
             UserInput = context.Input;
             if (eventSink != null)
                 this.EventSink = eventSink;
+            _eventSeq = initialEventSeq;
 
             // 将 Root.State 中的初始数据复制到会话级 ConversationState
             foreach (var kv in context.State)

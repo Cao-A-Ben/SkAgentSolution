@@ -10,9 +10,28 @@ using SKAgent.Host.Boostrap;
 // ============================================
 
 var builder = WebApplication.CreateBuilder(args);
+var replayUiCorsPolicy = "ReplayUiCors";
 
 // 1. 注册 MVC 控制器服务
 builder.Services.AddControllers();
+
+// 1.1 注册 CORS，允许独立 Replay UI 在本地开发时直连 Host API。
+var allowedOrigins = builder.Configuration
+    .GetSection("Cors:AllowedOrigins")
+    .Get<string[]>();
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy(replayUiCorsPolicy, policy =>
+    {
+        if (allowedOrigins is { Length: > 0 })
+        {
+            policy
+                .WithOrigins(allowedOrigins)
+                .AllowAnyHeader()
+                .AllowAnyMethod();
+        }
+    });
+});
 
 // 2. 注册所有 SKAgent 相关服务（Kernel、Agent、Runtime、Memory、Profile 等）
 builder.Services.AddSkAgentServices(builder.Configuration);
@@ -50,10 +69,13 @@ app.UseHttpsRedirection();
 // 7. 启用 HTTP 日志中间件
 app.UseHttpLogging();
 
-// 8. 启用授权中间件
+// 8. 启用 CORS，支持前端独立开发服务器或直连模式。
+app.UseCors(replayUiCorsPolicy);
+
+// 9. 启用授权中间件
 app.UseAuthorization();
 
-// 9. 映射控制器路由
+// 10. 映射控制器路由
 app.MapControllers();
 
 app.Run();
