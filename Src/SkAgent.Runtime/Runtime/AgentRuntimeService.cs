@@ -12,8 +12,10 @@ using SKAgent.Core.Observability;
 using SKAgent.Core.Personas;
 using SKAgent.Core.Planning;
 using SKAgent.Core.Profile;
+using SKAgent.Core.Reflection;
 using SKAgent.Core.Runtime;
 using SKAgent.Runtime;
+using SKAgent.Runtime.Utilities;
 using static SKAgent.Core.Planning.IPlanner;
 
 namespace SkAgent.Runtime.Runtime
@@ -50,6 +52,7 @@ namespace SkAgent.Runtime.Runtime
         private readonly LongTermMemoryService _longTermMemoryService;
         /// <summary> 已决策快照 </summary>
         private readonly IRunPreparationService _prep;
+        private readonly IReviewer _reviewer;
 
         /// <summary>人格配置选项。</summary>
         //private readonly PersonaOptions persona;
@@ -70,7 +73,8 @@ namespace SkAgent.Runtime.Runtime
             IFactStore factStore,
             LongTermMemoryService longTermMemoryService,
             IRunPreparationService prep,
-            IPlanRequestFactory planRequestFactory)
+            IPlanRequestFactory planRequestFactory,
+            IReviewer reviewer)
         {
             _stm = stm ?? throw new ArgumentNullException(nameof(stm));
             _planner = planner ?? throw new ArgumentNullException(nameof(planner));
@@ -83,6 +87,7 @@ namespace SkAgent.Runtime.Runtime
 
             this._prep = prep;
             this._planRequestFactory = planRequestFactory;
+            _reviewer = reviewer ?? throw new ArgumentNullException(nameof(reviewer));
         }
 
         /// <summary>
@@ -135,43 +140,58 @@ namespace SkAgent.Runtime.Runtime
             //规划开始
             await run.EmitAsync("run_started", new { input = run.UserInput }, run.Root.CancellationToken);
 
-            // 3. 从短期记忆加载最近 4 轮对话记录，供 Planner 和 ChatAgent 参考上下文
-            var recent = await _stm.GetRecentAsync(conversationId, take: 4, ct);
-            run.SetRecentTurns(recent);
-            run.ConversationState["recent_turns"] = recent;
+            string failurePhase = "recent_history";
 
-            // 4) Load profile snapshot
-            var profile = await _profileStore.GetAsync(conversationId, ct);
-            run.ConversationState["profile"] = profile;
-            // 5) PREPARE (persona_selected + memory_layer_included x3)
-            await _prep.PrepareAsync(run, ct);
-
-            // 同步到强类型 Prep ; 这些键是 prep service 写入的事实源
-            if (run.ConversationState.TryGetValue("persona", out var po) && po is PersonaOptions persona)
-                run.Prep.Persona = persona;
-
-            if (run.ConversationState.TryGetValue("memoryBundle", out var mb) && mb is MemoryBundle bundle)
-                run.Prep.Memory = bundle;
-
-            // 生成 planner prompt（产出 prompt_composed(target=planner)）
-            var plannerPrompt = await _prep.GetPromptAsync(run, PromptTarget.Planner, run.UserInput, 12000, ct);
-            // 把 plannerPrompt.User 作为“plannerInput”写进 state，交给 PlanRequestFactory 使用
-            run.ConversationState["planner_input"] = plannerPrompt.User;
-            run.Prep.PromptCache["planner"] = plannerPrompt; // 可选：缓存
-
-            // 7) Create plan (use factory; no hand-written DTO)
-            var planReq = _planRequestFactory.Create(run);
-            var plan = await _planner.CreatePlanAsync(planReq);
-            //var plan = await _planner.CreatPlanAsync(run);
-            run.SetPlan(plan);
-
-            //规划后
-            await run.EmitAsync("plan_created", new
+            try
             {
-                goal = plan.Goal,
-                stepCount = plan.Steps.Count,
-                steps = plan.Steps.Select(s => new { order = s.Order, kind = s.Kind.ToString(), target = s.Target })
-            }, run.Root.CancellationToken);
+                // 3. 从短期记忆加载最近 4 轮对话记录，供 Planner 和 ChatAgent 参考上下文
+                var recent = await _stm.GetRecentAsync(conversationId, take: 4, ct);
+                run.SetRecentTurns(recent);
+                run.ConversationState["recent_turns"] = recent;
+
+                // 4) Load profile snapshot
+                failurePhase = "profile_snapshot";
+                var profile = await _profileStore.GetAsync(conversationId, ct);
+                run.ConversationState["profile"] = profile;
+
+                // 5) PREPARE (persona_selected + memory_layer_included x3)
+                failurePhase = "memory_prepare";
+                await _prep.PrepareAsync(run, ct);
+
+                // 同步到强类型 Prep ; 这些键是 prep service 写入的事实源
+                if (run.ConversationState.TryGetValue("persona", out var po) && po is PersonaOptions persona)
+                    run.Prep.Persona = persona;
+
+                if (run.ConversationState.TryGetValue("memoryBundle", out var mb) && mb is MemoryBundle bundle)
+                    run.Prep.Memory = bundle;
+
+                // 生成 planner prompt（产出 prompt_composed(target=planner)）
+                failurePhase = "planner_prompt";
+                var plannerPrompt = await _prep.GetPromptAsync(run, PromptTarget.Planner, run.UserInput, 12000, ct);
+                // 把 plannerPrompt.User 作为“plannerInput”写进 state，交给 PlanRequestFactory 使用
+                run.ConversationState["planner_input"] = plannerPrompt.User;
+                run.Prep.PromptCache["planner"] = plannerPrompt; // 可选：缓存
+
+                // 7) Create plan (use factory; no hand-written DTO)
+                failurePhase = "planner_plan";
+                var planReq = _planRequestFactory.Create(run);
+                var plan = await _planner.CreatePlanAsync(planReq);
+                //var plan = await _planner.CreatPlanAsync(run);
+                run.SetPlan(plan);
+
+                //规划后
+                await run.EmitAsync("plan_created", new
+                {
+                    goal = plan.Goal,
+                    stepCount = plan.Steps.Count,
+                    steps = plan.Steps.Select(s => new { order = s.Order, kind = s.Kind.ToString(), target = s.Target })
+                }, run.Root.CancellationToken);
+            }
+            catch (Exception ex) when (!ct.IsCancellationRequested)
+            {
+                await HandlePreExecutionFailureAsync(run, failurePhase, ex, ct);
+                return run;
+            }
 
 
 
@@ -243,6 +263,50 @@ namespace SkAgent.Runtime.Runtime
             //await run.EmitAsync("run_completed", new { finalOutput = run.FinalOutput }, run.Root.CancellationToken);
 
             return run;
+        }
+
+        private async Task HandlePreExecutionFailureAsync(
+            AgentRunContext run,
+            string failurePhase,
+            Exception ex,
+            CancellationToken ct)
+        {
+            var failureSource = failurePhase.StartsWith("planner", StringComparison.OrdinalIgnoreCase)
+                ? FailureSource.Planner
+                : FailureSource.Memory;
+            var errorCode = failureSource == FailureSource.Planner
+                ? "planner_exception"
+                : "memory_exception";
+
+            var repairPlan = await _reviewer.ReviewFailureAsync(
+                new FailureReviewRequest(
+                    Run: ReflectionContextBuilder.Build(run),
+                    FailureSource: failureSource,
+                    FailurePhase: failurePhase,
+                    Error: new ErrorInfo(errorCode, ex.Message),
+                    Attempt: 0,
+                    MaxRetries: 0),
+                ct);
+
+            await RepairEventEmitter.EmitRepairPlanAsync(run, repairPlan, failedStep: null, ct);
+
+            run.Status = AgentRunStatus.Failed;
+            run.FinalOutput = string.Empty;
+            run.ConversationState["run_status"] = run.Status.ToString();
+            run.ConversationState["final_output"] = run.FinalOutput;
+            run.SyncStateBackToRoot();
+
+            await run.EmitAsync("run_failed", new
+            {
+                finalOutput = run.FinalOutput,
+                failedOrder = (int?)null,
+                error = ex.Message,
+                failureSource = RepairEventEmitter.ToFailureSourceKey(failureSource),
+                failureCategory = repairPlan.FailureCategory,
+                failedPhase = failurePhase,
+                stepCount = run.Steps.Count,
+                retries = run.StepRetryCounts
+            }, ct);
         }
 
 

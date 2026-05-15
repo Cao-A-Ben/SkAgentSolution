@@ -46,7 +46,8 @@ public sealed class ReplayQueryService
             ProjectSummary(events, source.Kind, source.Suggestion),
             ProjectPrompt(events),
             ProjectSteps(events),
-            ProjectMemory(events));
+            ProjectMemory(events),
+            ProjectRepair(events));
     }
 
     public async Task<IReadOnlyList<ReplayEventEnvelope>> GetEventsAsync(string runId, CancellationToken ct = default)
@@ -378,6 +379,37 @@ public sealed class ReplayQueryService
             || memory.VectorTopK.HasValue;
 
         return hasContent ? memory : null;
+    }
+
+    private static ReplayRepairSummary? ProjectRepair(IReadOnlyList<ReplayEventEnvelope> events)
+    {
+        var repairEvent = events.LastOrDefault(x => string.Equals(x.Type, "repair_plan_created", StringComparison.OrdinalIgnoreCase));
+        if (repairEvent is null)
+            return null;
+
+        var steps = new List<ReplayRepairStepSummary>();
+        if (repairEvent.Payload.TryGetProperty("repairSteps", out var repairSteps)
+            && repairSteps.ValueKind == JsonValueKind.Array)
+        {
+            foreach (var step in repairSteps.EnumerateArray())
+            {
+                steps.Add(new ReplayRepairStepSummary(
+                    Id: GetString(step, "id") ?? string.Empty,
+                    Title: GetString(step, "title") ?? "repair-step",
+                    Action: GetString(step, "action") ?? "unknown",
+                    Target: GetString(step, "target"),
+                    Status: GetString(step, "status") ?? "planned",
+                    Notes: GetString(step, "notes")));
+            }
+        }
+
+        return new ReplayRepairSummary(
+            FailureSource: GetString(repairEvent.Payload, "failureSource"),
+            FailureCategory: GetString(repairEvent.Payload, "failureCategory"),
+            Reason: GetString(repairEvent.Payload, "reason"),
+            FailedPhase: GetString(repairEvent.Payload, "failedPhase"),
+            FailedOrder: GetInt32(repairEvent.Payload, "failedOrder"),
+            Steps: steps);
     }
 
     private static string? FindConversationId(IEnumerable<ReplayEventEnvelope> events)

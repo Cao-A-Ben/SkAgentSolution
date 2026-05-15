@@ -13,6 +13,7 @@ export const milestoneEventTypes = [
 export type EventGroup =
   | "all"
   | "milestone"
+  | "repair"
   | "memory"
   | "model"
   | "step"
@@ -33,6 +34,7 @@ export type ReplayHealthSummary = {
   acceptanceHits: number;
   acceptanceTotal: number;
   acceptanceRatio: number;
+  repairEvents: number;
   memoryEvents: number;
   modelEvents: number;
   stepEvents: number;
@@ -52,6 +54,10 @@ export function getRunDisplayCopy(run: ReplayRunSummary, fallbackText: string) {
 export function getEventGroup(type: string): EventGroup {
   if (milestoneEventTypes.includes(type as (typeof milestoneEventTypes)[number])) {
     return "milestone";
+  }
+
+  if (type.includes("repair") || type.includes("reflection") || type.includes("retry")) {
+    return "repair";
   }
 
   if (type.includes("memory") || type.includes("recall") || type.includes("vector")) {
@@ -92,6 +98,7 @@ export function countEventsByGroup(events: ReplayEvent[]) {
     {
       all: 0,
       milestone: 0,
+      repair: 0,
       memory: 0,
       model: 0,
       step: 0,
@@ -147,6 +154,21 @@ export function summarizeEvent(event: ReplayEvent, t: TranslateFn) {
       return payload?.totalItems !== undefined
         ? t("event.summary.memoryFused", { totalItems: String(payload.totalItems) })
         : t("event.summary.memoryMerged");
+    case "repair_plan_created":
+      return payload?.failureSource
+        ? t("event.summary.repairPlanCreated", {
+            failureSource: String(payload.failureSource),
+            count: String(payload.repairStepCount ?? 0),
+          })
+        : t("event.summary.repairPlanReady");
+    case "repair_step_started":
+      return payload?.title
+        ? t("event.summary.repairStepStarted", { title: String(payload.title) })
+        : t("event.summary.repairStepRunning");
+    case "repair_step_completed":
+      return payload?.title
+        ? t("event.summary.repairStepCompleted", { title: String(payload.title) })
+        : t("event.summary.repairStepDone");
     default:
       return event.type.split("_").join(" ");
   }
@@ -166,6 +188,10 @@ export function getEventPriority(event: ReplayEvent): EventPriority {
   }
 
   if (group === "milestone") {
+    return "high";
+  }
+
+  if (group === "repair") {
     return "high";
   }
 
@@ -193,6 +219,11 @@ export function summarizePayloadPreview(event: ReplayEvent, t: TranslateFn) {
     "totalItems",
     "created",
     "status",
+    "failureSource",
+    "failureCategory",
+    "repairStepCount",
+    "repairStepId",
+    "action",
   ];
 
   const parts = preferredKeys
@@ -215,6 +246,7 @@ export function summarizePayloadPreview(event: ReplayEvent, t: TranslateFn) {
 export function buildReplaySignals(events: ReplayEvent[], t: TranslateFn): ReplaySignal[] {
   const eventTypes = new Set(events.map((event) => event.type));
   const milestoneHits = milestoneEventTypes.filter((type) => eventTypes.has(type));
+  const repairCount = events.filter((event) => getEventGroup(event.type) === "repair").length;
   const memoryCount = events.filter((event) => getEventGroup(event.type) === "memory").length;
   const modelCount = events.filter((event) => getEventGroup(event.type) === "model").length;
   const stepCount = events.filter((event) => getEventGroup(event.type) === "step").length;
@@ -236,7 +268,13 @@ export function buildReplaySignals(events: ReplayEvent[], t: TranslateFn): Repla
     });
   }
 
-  if (memoryCount > 0) {
+  if (repairCount > 0) {
+    signals.push({
+      tone: "insight",
+      title: t("signal.insight.repairTitle"),
+      copy: t("signal.insight.repairCopy", { count: repairCount }),
+    });
+  } else if (memoryCount > 0) {
     signals.push({
       tone: "insight",
       title: t("signal.insight.memoryTitle"),
@@ -286,6 +324,7 @@ export function buildReplayHealthSummary(events: ReplayEvent[]): ReplayHealthSum
   const acceptanceTotal = milestoneEventTypes.length;
   const eventTypes = new Set(events.map((event) => event.type));
   const acceptanceHits = milestoneEventTypes.filter((type) => eventTypes.has(type)).length;
+  const repairEvents = events.filter((event) => getEventGroup(event.type) === "repair").length;
   const memoryEvents = events.filter((event) => getEventGroup(event.type) === "memory").length;
   const modelEvents = events.filter((event) => getEventGroup(event.type) === "model").length;
   const stepEvents = events.filter((event) => getEventGroup(event.type) === "step").length;
@@ -296,6 +335,7 @@ export function buildReplayHealthSummary(events: ReplayEvent[]): ReplayHealthSum
     acceptanceHits,
     acceptanceTotal,
     acceptanceRatio: acceptanceHits / acceptanceTotal,
+    repairEvents,
     memoryEvents,
     modelEvents,
     stepEvents,

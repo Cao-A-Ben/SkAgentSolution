@@ -241,6 +241,7 @@ ClientBin/
 
 # Local workspace artifacts
 tempskagent-host-build/
+.codex
 .codex/
 voice-sample.wav
 orleans.codegen.cs

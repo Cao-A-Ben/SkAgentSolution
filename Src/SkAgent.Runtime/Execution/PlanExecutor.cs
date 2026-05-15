@@ -46,6 +46,7 @@ namespace SkAgent.Runtime.Execution
 
         /// <summary>反思 Agent，用于处理失败后的重试决策。</summary>
         private readonly IReflectionAgent _reflectionAgent;
+        private readonly IReviewer _reviewer;
 
         /// <summary>单步最大重试次数。</summary>
         const int MaxRetriesPerStep = 3;
@@ -61,11 +62,13 @@ namespace SkAgent.Runtime.Execution
         /// <param name="reflectionAgent">反思 Agent 实例。</param>
         /// <param name="personaManager">人格管理器实例。</param>
         public PlanExecutor(IStepRouter router, IToolInvoker toolInvoker,
-            IReflectionAgent reflectionAgent)
+            IReflectionAgent reflectionAgent,
+            IReviewer reviewer)
         {
             _router = router;
             _toolInvoker = toolInvoker;
             _reflectionAgent = reflectionAgent;
+            _reviewer = reviewer;
             //_personaManager = personaManager;
             //_memoryOrchestrator = memoryOrchestrator;
         }
@@ -241,7 +244,17 @@ namespace SkAgent.Runtime.Execution
                         error = ex.Message
                     }, run.Root.CancellationToken);
 
-                    await FailRunAsync(run, step.Order, ex.Message);
+                    var failureSource = step.Kind == PlanStepKind.Tool ? FailureSource.Tool : FailureSource.Executor;
+                    var repairPlan = await CreateRepairPlanAsync(
+                        run,
+                        step,
+                        failureSource,
+                        failurePhase: "unexpected_exception",
+                        error: new ErrorInfo("executor_exception", ex.Message),
+                        attempt: GetAttempt(run, step.Order));
+
+                    await RepairEventEmitter.EmitRepairPlanAsync(run, repairPlan, step, run.Root.CancellationToken);
+                    await FailRunAsync(run, step.Order, ex.Message, failureSource, repairPlan.FailureCategory);
                     return false;
                 }
             }
@@ -309,7 +322,17 @@ namespace SkAgent.Runtime.Execution
                 max = MaxRetriesPerStep
             }, run.Root.CancellationToken);
 
-            await FailRunAsync(run, step.Order, exec.Error ?? error.Message);
+            var failureSource = failurePhase == "tool" ? FailureSource.Tool : FailureSource.Executor;
+            var repairPlan = await CreateRepairPlanAsync(
+                run,
+                step,
+                failureSource,
+                failurePhase,
+                error,
+                attempt);
+
+            await RepairEventEmitter.EmitRepairPlanAsync(run, repairPlan, step, run.Root.CancellationToken);
+            await FailRunAsync(run, step.Order, exec.Error ?? error.Message, failureSource, repairPlan.FailureCategory);
             return false;
         }
 
@@ -549,7 +572,34 @@ namespace SkAgent.Runtime.Execution
         /// <summary>
         /// 标记运行失败并发出 run_failed 事件。
         /// </summary>
-        private static async Task FailRunAsync(AgentRunContext run, int failedOrder, string error)
+        private async Task<RepairPlanDecision> CreateRepairPlanAsync(
+            AgentRunContext run,
+            PlanStep step,
+            FailureSource failureSource,
+            string failurePhase,
+            ErrorInfo error,
+            int attempt)
+        {
+            var reviewContext = ReflectionContextBuilder.Build(run);
+            return await _reviewer.ReviewFailureAsync(
+                new FailureReviewRequest(
+                    Run: reviewContext,
+                    FailureSource: failureSource,
+                    FailurePhase: failurePhase,
+                    Error: error,
+                    Attempt: attempt,
+                    MaxRetries: MaxRetriesPerStep,
+                    FailedStep: step,
+                    FailedOrder: step.Order),
+                run.Root.CancellationToken);
+        }
+
+        private static async Task FailRunAsync(
+            AgentRunContext run,
+            int failedOrder,
+            string error,
+            FailureSource? failureSource = null,
+            string? failureCategory = null)
         {
             run.Status = AgentRunStatus.Failed;
             run.FinalOutput = string.Join("\n", run.Steps.Select(d => d.Output));
@@ -561,6 +611,8 @@ namespace SkAgent.Runtime.Execution
                 finalOutput = run.FinalOutput ?? "",
                 failedOrder,
                 error,
+                failureSource = failureSource is null ? null : RepairEventEmitter.ToFailureSourceKey(failureSource.Value),
+                failureCategory,
                 stepCount = run.Steps.Count,
                 retries = run.StepRetryCounts
             }, run.Root.CancellationToken);

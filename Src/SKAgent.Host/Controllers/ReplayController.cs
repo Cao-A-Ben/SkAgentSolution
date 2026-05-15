@@ -113,6 +113,25 @@ public sealed class ReplayController : ControllerBase
                     VectorLatencyMs = detail.Memory.VectorLatencyMs,
                     VectorScoreMin = detail.Memory.VectorScoreMin,
                     VectorScoreMax = detail.Memory.VectorScoreMax
+                },
+            Repair = detail.Repair is null
+                ? null
+                : new ReplayRepairResponse
+                {
+                    FailureSource = detail.Repair.FailureSource,
+                    FailureCategory = detail.Repair.FailureCategory,
+                    Reason = detail.Repair.Reason,
+                    FailedPhase = detail.Repair.FailedPhase,
+                    FailedOrder = detail.Repair.FailedOrder,
+                    Steps = detail.Repair.Steps.Select(step => new ReplayRepairStepResponse
+                    {
+                        Id = step.Id,
+                        Title = step.Title,
+                        Action = step.Action,
+                        Target = step.Target,
+                        Status = step.Status,
+                        Notes = step.Notes
+                    }).ToList()
                 }
         };
 

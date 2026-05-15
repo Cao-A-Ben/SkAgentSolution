@@ -62,11 +62,30 @@ export type ReplayMemory = {
   vectorScoreMax?: number | null;
 };
 
+export type ReplayRepairStep = {
+  id: string;
+  title: string;
+  action: string;
+  target?: string | null;
+  status: string;
+  notes?: string | null;
+};
+
+export type ReplayRepair = {
+  failureSource?: string | null;
+  failureCategory?: string | null;
+  reason?: string | null;
+  failedPhase?: string | null;
+  failedOrder?: number | null;
+  steps: ReplayRepairStep[];
+};
+
 export type ReplayRunDetail = {
   summary: ReplayRunSummary;
   prompt?: ReplayPrompt | null;
   steps: ReplayStep[];
   memory?: ReplayMemory | null;
+  repair?: ReplayRepair | null;
 };
 
 export type ReplaySuggestion = {

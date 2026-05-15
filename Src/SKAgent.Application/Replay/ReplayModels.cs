@@ -60,11 +60,28 @@ public sealed record ReplayMemorySummary(
     double? VectorScoreMin,
     double? VectorScoreMax);
 
+public sealed record ReplayRepairStepSummary(
+    string Id,
+    string Title,
+    string Action,
+    string? Target,
+    string Status,
+    string? Notes);
+
+public sealed record ReplayRepairSummary(
+    string? FailureSource,
+    string? FailureCategory,
+    string? Reason,
+    string? FailedPhase,
+    int? FailedOrder,
+    IReadOnlyList<ReplayRepairStepSummary> Steps);
+
 public sealed record ReplayRunDetail(
     ReplayRunSummary Summary,
     ReplayPromptSummary? Prompt,
     IReadOnlyList<ReplayStepSummary> Steps,
-    ReplayMemorySummary? Memory);
+    ReplayMemorySummary? Memory,
+    ReplayRepairSummary? Repair);
 
 public sealed record ReplaySuggestionSummary(
     string Date,

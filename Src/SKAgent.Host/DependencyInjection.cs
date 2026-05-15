@@ -207,7 +207,9 @@ public static class DependencyInjection
         services.AddSingleton<IRunPreparationService, RunPreparationService>();
 
         services.AddSingleton<IOutputEvaluator, SimpleOutputEvaluator>();
-        services.AddSingleton<IReflectionAgent, ReflectionAgent>();
+        services.AddSingleton<ReflectionAgent>();
+        services.AddSingleton<IReflectionAgent>(sp => sp.GetRequiredService<ReflectionAgent>());
+        services.AddSingleton<IReviewer>(sp => sp.GetRequiredService<ReflectionAgent>());
 
         services.AddSingleton<IEmbeddingProvider>(sp => new EmbeddingProvider(
             sp.GetRequiredService<IModelRouter>(),

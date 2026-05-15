@@ -320,6 +320,10 @@ pre {
   grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
 }
 
+.meta-list--compact {
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+}
+
 .meta-list div {
   padding-top: 12px;
   border-top: 1px solid var(--line);
@@ -886,6 +890,11 @@ pre {
   border-left: 4px solid rgba(148, 101, 39, 0.28);
 }
 
+.timeline-item--high.timeline-item--group-repair,
+.timeline-item--normal.timeline-item--group-repair {
+  border-left: 4px solid rgba(140, 47, 57, 0.28);
+}
+
 .timeline-item--quiet {
   background: rgba(255, 255, 255, 0.5);
 }
@@ -923,6 +932,11 @@ pre {
 .timeline-group--memory {
   background: rgba(40, 95, 90, 0.12);
   color: var(--agent);
+}
+
+.timeline-group--repair {
+  background: rgba(140, 47, 57, 0.12);
+  color: var(--error);
 }
 
 .timeline-group--model {
@@ -1079,6 +1093,11 @@ pre {
 
 .diagnostic-card .meta-list {
   margin-top: 0;
+}
+
+.step-card--repair {
+  border: 1px solid rgba(140, 47, 57, 0.14);
+  background: rgba(255, 248, 248, 0.86);
 }
 
 .milestone-chip {

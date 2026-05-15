@@ -29,7 +29,7 @@ namespace SKAgent.Runtime.Utilities
             var preview = BuildConversationStatePreview(run.ConversationState);
 
             return new ReflectionContext(
-                RunId: run.Root.RequestId,
+                RunId: run.RunId,
                 ConversationId: run.ConversationId,
                 UserInput: run.UserInput,
                 PersonaId: personaId,

@@ -123,7 +123,21 @@ public sealed class ReplayQueryServiceTests : IDisposable
             Envelope(runId, 8, "2026-04-16T10:00:07Z", "recall_summary_built", new { source = "recent_history+long_term+git_history", preview = "Week9 已改为独立 Replay UI 周。" }),
             Envelope(runId, 9, "2026-04-16T10:00:08Z", "step_started", new { order = 1, kind = "Agent", target = "chat" }),
             Envelope(runId, 10, "2026-04-16T10:00:09Z", "step_completed", new { order = 1, success = true, outputPreview = "先完成 replay API 与独立前端骨架。" }),
-            Envelope(runId, 11, "2026-04-16T10:00:10Z", "run_completed", new { finalOutput = "Week9 第一阶段已打通。" })
+            Envelope(runId, 11, "2026-04-16T10:00:10Z", "repair_plan_created", new
+            {
+                failureSource = "tool",
+                failureCategory = "timeout",
+                reason = "tool failure classified as timeout",
+                failedPhase = "tool",
+                failedOrder = 1,
+                repairStepCount = 2,
+                repairSteps = new[]
+                {
+                    new { id = "inspect_failure_context", title = "Inspect failure context", action = "inspect_failure_context", target = "time.now", status = "planned", notes = "Inspect the failure." },
+                    new { id = "tool_repair_recommendation", title = "Retry the failed tool step", action = "retry_same_tool_step", target = "time.now", status = "planned", notes = "Retry later." }
+                }
+            }),
+            Envelope(runId, 12, "2026-04-16T10:00:11Z", "run_completed", new { finalOutput = "Week9 第一阶段已打通。" })
         ]);
 
         var replayRunStore = new TestReplayRunStore();
@@ -153,7 +167,10 @@ public sealed class ReplayQueryServiceTests : IDisposable
         Assert.NotNull(detail.Memory);
         Assert.Equal("recent_history+long_term+git_history", detail.Memory!.RecallSource);
         Assert.Equal(6, detail.Memory.VectorTopK);
-        Assert.True(new long[] { 1L, 2L, 3L, 4L, 5L, 6L, 7L, 8L, 9L, 10L, 11L }.SequenceEqual(events.Select(x => x.Seq)));
+        Assert.NotNull(detail.Repair);
+        Assert.Equal("tool", detail.Repair!.FailureSource);
+        Assert.Equal(2, detail.Repair.Steps.Count);
+        Assert.True(new long[] { 1L, 2L, 3L, 4L, 5L, 6L, 7L, 8L, 9L, 10L, 11L, 12L }.SequenceEqual(events.Select(x => x.Seq)));
     }
 
     public void Dispose()

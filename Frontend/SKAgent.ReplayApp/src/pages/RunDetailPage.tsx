@@ -76,7 +76,7 @@ export function RunDetailPage() {
     return events
       .filter((event) => {
         const group = getEventGroup(event.type);
-        return group === "milestone" || group === "model" || group === "memory";
+        return group === "milestone" || group === "model" || group === "memory" || group === "repair";
       })
       .slice(-4)
       .reverse();
@@ -94,6 +94,7 @@ export function RunDetailPage() {
             prompt: detail.prompt ?? null,
             steps: detail.steps,
             memory: detail.memory ?? null,
+            repair: detail.repair ?? null,
             events,
           }
         : null,
@@ -181,6 +182,7 @@ export function RunDetailPage() {
                 {([
                   ["all", `${t("detail.filter.all")} (${eventCounts.all})`],
                   ["milestone", `${t("detail.filter.milestone")} (${eventCounts.milestone})`],
+                  ["repair", `${t("detail.filter.repair")} (${eventCounts.repair})`],
                   ["memory", `${t("detail.filter.memory")} (${eventCounts.memory})`],
                   ["model", `${t("detail.filter.model")} (${eventCounts.model})`],
                   ["step", `${t("detail.filter.step")} (${eventCounts.step})`],
@@ -394,6 +396,69 @@ export function RunDetailPage() {
                 )}
               </div>
             </section>
+
+            <section className="panel" id="repair">
+              <div className="section-title">
+                <h3>{t("detail.repair.title")}</h3>
+                <p>{t("detail.repair.copy")}</p>
+              </div>
+
+              {!detail.repair ? (
+                <div className="panel panel--empty">{t("detail.repair.empty")}</div>
+              ) : (
+                <div className="diagnostic-grid">
+                  <article className="diagnostic-card">
+                    <dl className="meta-list meta-list--wide">
+                      <div>
+                        <dt>{t("detail.repair.source")}</dt>
+                        <dd>{detail.repair.failureSource ?? t("common.na")}</dd>
+                      </div>
+                      <div>
+                        <dt>{t("detail.repair.category")}</dt>
+                        <dd>{detail.repair.failureCategory ?? t("common.na")}</dd>
+                      </div>
+                      <div>
+                        <dt>{t("detail.repair.phase")}</dt>
+                        <dd>{detail.repair.failedPhase ?? t("common.na")}</dd>
+                      </div>
+                      <div>
+                        <dt>{t("detail.repair.reason")}</dt>
+                        <dd>{detail.repair.reason ?? t("common.na")}</dd>
+                      </div>
+                    </dl>
+                  </article>
+
+                  {detail.repair.steps.length === 0 ? (
+                    <div className="panel panel--empty">{t("detail.repair.stepsEmpty")}</div>
+                  ) : (
+                    <div className="stack">
+                      {detail.repair.steps.map((step) => (
+                        <article className="step-card step-card--repair" key={step.id}>
+                          <div className="run-card__header">
+                            <span className="pill pill--muted">{step.id}</span>
+                            <span className={`pill pill--status-${step.status}`}>
+                              {getStatusLabel(step.status, t)}
+                            </span>
+                          </div>
+                          <h4>{step.title}</h4>
+                          <p>{step.notes ?? t("common.noPreview")}</p>
+                          <dl className="meta-list meta-list--compact">
+                            <div>
+                              <dt>{t("common.action")}</dt>
+                              <dd>{step.action}</dd>
+                            </div>
+                            <div>
+                              <dt>{t("common.target")}</dt>
+                              <dd>{step.target ?? t("common.na")}</dd>
+                            </div>
+                          </dl>
+                        </article>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+            </section>
           </main>
 
           <aside className="detail-rail">
@@ -468,6 +533,10 @@ export function RunDetailPage() {
                   <strong>{detail.memory?.layers.length ?? 0}</strong>
                 </article>
                 <article className="stat-card">
+                  <span className="stat-card__label">{t("detail.stats.repairSteps")}</span>
+                  <strong>{detail.repair?.steps.length ?? 0}</strong>
+                </article>
+                <article className="stat-card">
                   <span className="stat-card__label">{t("detail.stats.promptChars")}</span>
                   <strong>
                     {(detail.prompt?.systemChars ?? 0) + (detail.prompt?.userChars ?? 0)}
@@ -512,6 +581,9 @@ export function RunDetailPage() {
                   </a>
                   <a className="section-nav__link" href="#memory">
                     {t("detail.section.memory")}
+                  </a>
+                  <a className="section-nav__link" href="#repair">
+                    {t("detail.section.repair")}
                   </a>
                 </nav>
               </section>
@@ -601,6 +673,8 @@ function getGroupLabel(
   switch (value) {
     case "milestone":
       return t("detail.filter.milestone");
+    case "repair":
+      return t("detail.filter.repair");
     case "memory":
       return t("detail.filter.memory");
     case "model":
@@ -618,6 +692,8 @@ function getGroupLabel(
 
 function getStatusLabel(value: string, t: TranslateFn) {
   switch (value) {
+    case "planned":
+      return t("common.planned");
     case "running":
       return t("common.running");
     case "failed":

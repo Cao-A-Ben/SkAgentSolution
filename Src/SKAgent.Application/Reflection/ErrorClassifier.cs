@@ -53,6 +53,33 @@ namespace SKAgent.Application.Reflection
                 );
             }
 
+            if (string.Equals(code, "agent_error", StringComparison.OrdinalIgnoreCase))
+            {
+                return new ErrorClassification(
+                    Retryability.NonRetryable,
+                    Category: "executor_step_failed",
+                    Reason: "The executor step reported a failure and needs inspection before rerun."
+                );
+            }
+
+            if (code.StartsWith("planner_", StringComparison.OrdinalIgnoreCase))
+            {
+                return new ErrorClassification(
+                    Retryability.NonRetryable,
+                    Category: "planner_failure",
+                    Reason: "Planner failed to build a valid plan and should be repaired before retry."
+                );
+            }
+
+            if (code.StartsWith("memory_", StringComparison.OrdinalIgnoreCase))
+            {
+                return new ErrorClassification(
+                    Retryability.NonRetryable,
+                    Category: "memory_failure",
+                    Reason: "Memory preparation failed and should be repaired before continuing."
+                );
+            }
+
             // 4) 429 / rate limit（如果 HttpTool 把 status 带上）
             if (err.HttpStatus == 429 || ContainsAny(msg, "rate limit", "throttle", "too many requests"))
             {

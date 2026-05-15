@@ -1,0 +1,88 @@
+# Repair Plan
+
+- Status: Week11 Phase 1 In Progress
+- Owner: Ben + Codex
+- Last Updated: 2026-05-15
+- Related:
+  - [Product Journey](../01-roadmap/product-journey.md)
+  - [System Overview](../02-architecture/system-overview.md)
+  - [Observability & Replay](./observability-replay.md)
+
+## 文档目的
+
+这份文档固定 Week11 的唯一目标：把已有的 `Reflection + retry` 升级为**可解释的 repair plan 机制**，并继续复用现有 replay / observability / Replay UI，而不是另起一套失败回放体系。
+
+## 当前实现范围
+
+- 已新增 `FailureSource`：
+  - `planner`
+  - `executor`
+  - `tool`
+  - `memory`
+- 已新增 `IReviewer` 抽象。
+- 当前默认 reviewer 为规则型实现，不依赖新的 LLM reviewer。
+- 已保留现有 `ReflectionAgent / retry_scheduled` 路径，确保 Week10 之前的重试语义不被破坏。
+
+## 当前 repair 事件链
+
+- `repair_plan_created`
+- `repair_step_started`
+- `repair_step_completed`
+
+说明：
+
+- `repair_plan_created` 是 repair 摘要的事实源。
+- `repair_step_*` 当前记录的是 reviewer 在 Week11 phase 1 中整理与发布 repair 建议的工作流步骤。
+- Week11 phase 1 默认**不会自动改写原 plan 并继续执行**；repair plan 先以“解释和建议”为主。
+
+## 当前默认分流策略
+
+### tool
+
+- 工具超时、网络抖动、限流等失败统一先归到 `tool`
+- 若错误可重试，则仍保留原有 `retry_scheduled`
+- 若达到重试上限或被判定为不可恢复，则生成 repair plan
+
+### executor
+
+- Agent step 返回失败、或执行阶段抛出非 tool 异常时归到 `executor`
+- repair plan 默认建议先检查失败 step 的输出与状态，再决定 rerun 或替换步骤
+
+### planner
+
+- planner prompt 生成或 planner output 解析失败时归到 `planner`
+- repair plan 默认建议检查 planner prompt、模型输出与 JSON 契约，然后重建 plan
+
+### memory
+
+- RunPreparation / memory bundle 生成失败时归到 `memory`
+- repair plan 默认建议检查 retrieval routes、memory inputs，并在必要时回退到 recent history
+
+## Replay 与 UI
+
+- repair 继续写入同一条 JSONL event timeline
+- replay detail 现在会额外投影 `repair`
+- Replay UI 的 run detail 现已补充：
+  - repair timeline filter
+  - repair panel
+  - failure source / category / reason / recommended steps
+
+## 当前边界
+
+- 已完成：
+  - reviewer 抽象
+  - repair plan 模型
+  - tool/executor/planner/memory 的基础失败分流
+  - repair 事件链
+  - replay 投影
+  - Replay UI repair 面板
+- 暂未完成：
+  - 自动执行 repair step
+  - plan diff 驱动的 remaining plan 修补
+  - 更细的 provider-specific repair 策略
+
+## 下一步
+
+1. 为更多真实失败样例补齐 replay 样本。
+2. 把 repair signals 做进更明显的 demo 视图。
+3. 在 Week12 之后评估“部分 repair 自动执行”的边界与风险。

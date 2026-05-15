@@ -49,6 +49,8 @@ Week9 起，SkAgent 的 replay 不再只依赖文件扫描，而是采用 `Postg
 - prompt_composed
 - plan_generated
 - step_started / step_finished
+- repair_plan_created
+- repair_step_started / repair_step_completed
 - run_completed / run_failed
 
 ### Memory 事件
@@ -179,6 +181,36 @@ Week9 起，SkAgent 的 replay 不再只依赖文件扫描，而是采用 `Postg
 - runId
 - error
 
+### Week11 关键 payload
+
+#### `repair_plan_created`
+
+- failureSource
+- failureCategory
+- reason
+- failedPhase
+- failedOrder
+- repairStepCount
+- repairSteps[]
+
+#### `repair_step_started`
+
+- repairStepId
+- title
+- action
+- target
+- status
+- notes
+
+#### `repair_step_completed`
+
+- repairStepId
+- title
+- action
+- target
+- status
+- notes
+
 ## 脱敏规则
 
 - Tool args 应按 allowlist / denylist 脱敏，不把敏感参数原样写入事件。
@@ -190,11 +222,12 @@ Week9 起，SkAgent 的 replay 不再只依赖文件扫描，而是采用 `Postg
 ### 面向开发与调试
 
 - 还原一次 run 的 Prompt、Plan、Step、Tool、Memory 决策。
-- 找出错误是来自 Planner、Tool 还是 Memory Fusion。
+- 找出错误是来自 Planner、Executor、Tool 还是 Memory。
 
 ### 面向产品演示
 
 - 展示“为什么检索、为什么裁剪、为什么修计划”。
+- 展示 repair plan 是如何解释失败来源并给出后续修复建议的。
 - 展示产品不是黑盒，而是可解释的运行时。
 - Week9 起，Replay UI 将成为这些事件的主消费方，直接把 run timeline、prompt、step、memory 决策映射为页面视图。
 
@@ -212,6 +245,7 @@ Week9 起，SkAgent 的 replay 不再只依赖文件扫描，而是采用 `Postg
   - `recall_summary_built.source = recent_history+long_term+git_history`
   - 输出已可稳定落到多主题阶段总结，而不再退化成泛化回声。
 - Week9 Replay UI 已进入验收前状态，并把 run replay 与 daily suggestion replay 统一成同一套展示入口。
+- Week11 当前已开始把 repair 事件和 repair 摘要并入同一套 replay/detail 视图。
 - 当前前端页面对 observability 事件的主要消费方式为：
   - `/api/replay/runs`
   - `/api/replay/runs/{runId}`

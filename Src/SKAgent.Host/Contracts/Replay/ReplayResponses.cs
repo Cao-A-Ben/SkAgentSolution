@@ -112,6 +112,36 @@ public sealed class ReplayMemoryResponse
     public double? VectorScoreMax { get; init; }
 }
 
+public sealed class ReplayRepairStepResponse
+{
+    public string Id { get; init; } = string.Empty;
+
+    public string Title { get; init; } = string.Empty;
+
+    public string Action { get; init; } = string.Empty;
+
+    public string? Target { get; init; }
+
+    public string Status { get; init; } = string.Empty;
+
+    public string? Notes { get; init; }
+}
+
+public sealed class ReplayRepairResponse
+{
+    public string? FailureSource { get; init; }
+
+    public string? FailureCategory { get; init; }
+
+    public string? Reason { get; init; }
+
+    public string? FailedPhase { get; init; }
+
+    public int? FailedOrder { get; init; }
+
+    public IReadOnlyList<ReplayRepairStepResponse> Steps { get; init; } = Array.Empty<ReplayRepairStepResponse>();
+}
+
 public sealed class ReplayRunDetailResponse
 {
     public ReplayRunSummaryResponse Summary { get; init; } = new();
@@ -121,6 +151,8 @@ public sealed class ReplayRunDetailResponse
     public IReadOnlyList<ReplayStepResponse> Steps { get; init; } = Array.Empty<ReplayStepResponse>();
 
     public ReplayMemoryResponse? Memory { get; init; }
+
+    public ReplayRepairResponse? Repair { get; init; }
 }
 
 public sealed class ReplaySuggestionResponse
