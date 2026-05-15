@@ -1,6 +1,6 @@
 # Voice Runtime
 
-- Status: Week10 Phase 1 In Progress
+- Status: Week10 Accepted
 - Owner: Ben + Codex
 - Last Updated: 2026-04-17
 - Related:
@@ -37,7 +37,7 @@
   - `IVoiceAgentRuntime`
   - `VoiceRuntimeOptions`
 - `SKAgent.Application`
-  - `VoiceRuntimeService`
+  - `VoiceOrchestrationService`
   - 负责串联 STT / Runtime / TTS 用例
 - `SkAgent.Runtime / Host`
   - `AgentVoiceRuntimeAdapter`
@@ -108,18 +108,25 @@
 
 ## 当前真实联调结论
 
-- `POST /api/voice/run` 已完成真实外部调用验证
-- 当前 `api.routin.ai` 这组凭证会把语音请求转发到外部网关，但返回：
-  - `no_available_provider`
-- Host 当前已把这类外部 provider 故障收敛成：
-  - `502 Bad Gateway`
-  - `application/problem+json`
-- 这意味着 Week10 当前已经打通：
-  - 语音入口
-  - provider-neutral 编排
-  - 对外语音网关调用
-  - 标准化错误面
-- 后续只需切换到一组真正具备语音后端能力的 `VoiceGateway` 配置，即可继续完成 STT / TTS 真正闭环验收
+- `POST /api/voice/run` 已完成本地真实闭环验收
+- 当前默认闭环为：
+  - `voice_stt` -> 本地 `faster-whisper-server`
+  - `Runtime` -> 现有文本 Agent Runtime
+  - `voice_tts` -> 本地 `Kokoro`
+- 已确认成功返回：
+  - `conversationId`
+  - `runId`
+  - `transcript`
+  - `outputText`
+  - `audioBase64`
+  - `audioContentType`
+  - `audioFormat`
+- 已确认 replay 中完整出现：
+  - `voice_input_received`
+  - `voice_transcribed`
+  - `voice_response_synthesized`
+  - `voice_playback_ready`
+- Week10 当前已满足最小语音闭环验收标准
 
 ## 当前推荐本地 TTS 方案
 
@@ -138,6 +145,4 @@
   - `/health` 正常
   - `/v1/models` 正常
   - `Systran/faster-whisper-small` 能加载进服务
-- 当前剩余风险不在 Host 路由，而在本地 STT 服务自己的推理/模型状态：
-  - `small` 模型请求存在较长等待
-  - `tiny` 模型请求当前返回 `Internal Server Error`
+- 当前验收样例已确认 `small` 模型能够完成真实转写

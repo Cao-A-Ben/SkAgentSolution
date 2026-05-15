@@ -238,6 +238,11 @@ ClientBin/
 *.jfm
 *.pfx
 *.publishsettings
+
+# Local workspace artifacts
+tempskagent-host-build/
+.codex/
+voice-sample.wav
 orleans.codegen.cs
 
 # Including strong name files can present a security risk

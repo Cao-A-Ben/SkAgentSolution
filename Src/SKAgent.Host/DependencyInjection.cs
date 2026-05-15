@@ -200,7 +200,7 @@ public static class DependencyInjection
         });
         services.AddSingleton<IRunEventLogFactory, JsonlRunEventLogFactory>();
         services.AddSingleton<ReplayQueryService>();
-        services.AddScoped<VoiceRuntimeService>();
+        services.AddScoped<VoiceOrchestrationService>();
 
         services.AddSingleton<PromptComposer>();
         services.AddSingleton<IPlanRequestFactory, DefaultPlanRequestFactory>();

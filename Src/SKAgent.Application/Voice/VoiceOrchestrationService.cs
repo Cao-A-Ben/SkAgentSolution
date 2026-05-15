@@ -11,10 +11,13 @@ namespace SKAgent.Application.Voice;
 /// Week10 的语音编排服务。
 /// Application 负责串联 STT / Runtime / TTS，但不直接依赖具体 Runtime 实现。
 /// </summary>
-public sealed class VoiceRuntimeService
+public sealed class VoiceOrchestrationService
 {
+    // TTS 不擅长直接朗读 Markdown 标记，因此先做最小清洗。
     private static readonly Regex MarkdownDecorationRegex = new(@"(\*\*|__|`|#+\s*)", RegexOptions.Compiled);
+    // 列表编号或 bullet 在口播里通常是噪音，这里统一移除。
     private static readonly Regex ListPrefixRegex = new(@"^\s*(?:[-*+]|\d+\.)\s*", RegexOptions.Compiled | RegexOptions.Multiline);
+    // 最终把多段文本压成适合语音播报的连续空白。
     private static readonly Regex WhitespaceRegex = new(@"\s+", RegexOptions.Compiled);
 
     private readonly IVoiceAgentRuntime _voiceAgentRuntime;
@@ -25,7 +28,7 @@ public sealed class VoiceRuntimeService
     private readonly IReplayRunStore _replayRunStore;
     private readonly VoiceRuntimeOptions _options;
 
-    public VoiceRuntimeService(
+    public VoiceOrchestrationService(
         IVoiceAgentRuntime voiceAgentRuntime,
         IModelRouter modelRouter,
         IVoiceTranscriptionService transcriptionService,
@@ -201,6 +204,11 @@ public sealed class VoiceRuntimeService
             ct);
     }
 
+    /// <summary>
+    /// `model_selected` 在系统里是统一审计事件。
+    /// Voice 这里复用同一个事件名，只是把 purpose 明确标成 `voice_stt` 或 `voice_tts`。
+    /// 这样 replay UI 不需要为语音链路再发明一套新的模型事件协议。
+    /// </summary>
     private static Task EmitModelSelectedAsync(
         IRunEventSink sink,
         string runId,
@@ -224,6 +232,10 @@ public sealed class VoiceRuntimeService
             ct);
     }
 
+    /// <summary>
+    /// Replay 摘要与 TTS 输入都不需要无限长文本。
+    /// 这里统一做安全截断，避免把过长内容继续带到索引、UI 或语音合成阶段。
+    /// </summary>
     private static string Trim(string? value, int maxChars)
     {
         if (string.IsNullOrWhiteSpace(value))
