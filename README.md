@@ -152,6 +152,9 @@ Week10 当前说明见：
   - `repair_step_started`
   - `repair_step_completed`
 - 当前 replay detail 已开始投影 repair 摘要，并在 Replay UI 中提供独立 repair 面板。
+- 当前固定决策：
+  - Week11 继续强化 failure samples、repair replay 与 demo 展示
+  - 不在 Week11 内开启部分自动 repair 执行
 
 Week11 当前说明见：
 

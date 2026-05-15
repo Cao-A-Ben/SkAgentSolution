@@ -81,8 +81,25 @@
   - plan diff 驱动的 remaining plan 修补
   - 更细的 provider-specific repair 策略
 
+## 当前决策
+
+- Week11 **不进入**“部分自动 repair 执行”阶段。
+- 当前固定决策是：
+  - repair plan 继续保持 `recorded / review-first / manual-only`
+  - 先补齐四类失败来源的真实样例与 replay 展示
+  - 先把 demo 能力做成“失败可解释、修复建议可讲解”，而不是让 runtime 在 Week11 内直接改 plan 继续跑
+
+原因：
+
+- 当前最需要收口的是 failure taxonomy、event schema 和 replay/demo 讲解路径。
+- 如果现在就进入自动 repair，会同时引入：
+  - plan 被动态改写后的验收复杂度
+  - 工具副作用与重复执行风险
+  - 更多状态兼容成本
+- 这些更适合放到 Week12 之后，在 MCP / Demo 主线稳定后单独推进。
+
 ## 下一步
 
-1. 为更多真实失败样例补齐 replay 样本。
-2. 把 repair signals 做进更明显的 demo 视图。
-3. 在 Week12 之后评估“部分 repair 自动执行”的边界与风险。
+1. 为 `planner / executor / tool / memory` 四类失败补更多真实样例。
+2. 继续强化 repair 在 replay/detail/demo 里的可读性。
+3. 在 Week12 之后，再单独评估“部分 repair 自动执行”的边界与风险。
