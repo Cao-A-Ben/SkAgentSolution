@@ -2,7 +2,7 @@
 
 - Status: Active SSOT
 - Owner: Ben + Codex
-- Last Updated: 2026-04-17
+- Last Updated: 2026-05-15
 - Related:
   - [Runtime Lifecycle](../02-architecture/runtime-lifecycle.md)
   - [Memory & Retrieval](./memory-retrieval.md)
@@ -245,7 +245,8 @@ Week9 起，SkAgent 的 replay 不再只依赖文件扫描，而是采用 `Postg
   - `recall_summary_built.source = recent_history+long_term+git_history`
   - 输出已可稳定落到多主题阶段总结，而不再退化成泛化回声。
 - Week9 Replay UI 已进入验收前状态，并把 run replay 与 daily suggestion replay 统一成同一套展示入口。
-- Week11 当前已开始把 repair 事件和 repair 摘要并入同一套 replay/detail 视图。
+- Week11 已完成把 repair 事件和 repair 摘要并入同一套 replay/detail 视图。
+- replay detail 当前会继续叠加 `repair_step_started / repair_step_completed`，从而反映 repair step 的实时状态，而不是只显示创建时的静态建议。
 - 当前前端页面对 observability 事件的主要消费方式为：
   - `/api/replay/runs`
   - `/api/replay/runs/{runId}`

@@ -1,6 +1,6 @@
 # Repair Plan
 
-- Status: Week11 Phase 1 In Progress
+- Status: Week11 Completed
 - Owner: Ben + Codex
 - Last Updated: 2026-05-15
 - Related:
@@ -32,8 +32,9 @@
 说明：
 
 - `repair_plan_created` 是 repair 摘要的事实源。
-- `repair_step_*` 当前记录的是 reviewer 在 Week11 phase 1 中整理与发布 repair 建议的工作流步骤。
-- Week11 phase 1 默认**不会自动改写原 plan 并继续执行**；repair plan 先以“解释和建议”为主。
+- `repair_step_*` 当前记录的是 reviewer 在当前 run 中发布 repair 建议步骤时的真实状态变化。
+- replay detail 会以 `repair_plan_created` 为基线，并继续叠加 `repair_step_started / repair_step_completed` 的后续状态。
+- Week11 默认**不会自动改写原 plan 并继续执行**；repair plan 先以“解释和建议”为主。
 
 ## 当前默认分流策略
 
@@ -66,6 +67,7 @@
   - repair timeline filter
   - repair panel
   - failure source / category / reason / recommended steps
+  - repair step 状态摘要（planned / running / completed / failed / skipped）
 
 ## 当前边界
 
@@ -76,6 +78,8 @@
   - repair 事件链
   - replay 投影
   - Replay UI repair 面板
+  - 四类 failure source 的真实测试样例
+  - repair step 实时状态投影与 UI 状态摘要
 - 暂未完成：
   - 自动执行 repair step
   - plan diff 驱动的 remaining plan 修补
@@ -100,6 +104,6 @@
 
 ## 下一步
 
-1. 为 `planner / executor / tool / memory` 四类失败补更多真实样例。
-2. 继续强化 repair 在 replay/detail/demo 里的可读性。
+1. Week12 继续把 repair 结果纳入 demo 路线与讲解脚本。
+2. 在 MCP / skill 接入后，继续复用当前 failure taxonomy 与 replay 结构。
 3. 在 Week12 之后，再单独评估“部分 repair 自动执行”的边界与风险。

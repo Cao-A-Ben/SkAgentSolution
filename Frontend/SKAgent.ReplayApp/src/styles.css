@@ -416,6 +416,11 @@ pre {
   color: var(--error);
 }
 
+.pill--status-skipped {
+  background: rgba(91, 101, 116, 0.12);
+  color: var(--muted);
+}
+
 .stack {
   display: grid;
   gap: 16px;

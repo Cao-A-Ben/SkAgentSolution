@@ -130,14 +130,42 @@ public sealed class ReplayQueryServiceTests : IDisposable
                 reason = "tool failure classified as timeout",
                 failedPhase = "tool",
                 failedOrder = 1,
-                repairStepCount = 2,
+                repairStepCount = 3,
                 repairSteps = new[]
                 {
                     new { id = "inspect_failure_context", title = "Inspect failure context", action = "inspect_failure_context", target = "time.now", status = "planned", notes = "Inspect the failure." },
-                    new { id = "tool_repair_recommendation", title = "Retry the failed tool step", action = "retry_same_tool_step", target = "time.now", status = "planned", notes = "Retry later." }
+                    new { id = "stabilize_tool_runtime", title = "Inspect tool runtime health and timeout budget", action = "inspect_tool_runtime_health", target = "time.now", status = "planned", notes = "Check timeout budget first." },
+                    new { id = "retry_same_tool_step_with_backoff", title = "Prepare a controlled retry with backoff", action = "retry_same_tool_step_with_backoff", target = "time.now", status = "planned", notes = "Retry later." }
                 }
             }),
-            Envelope(runId, 12, "2026-04-16T10:00:11Z", "run_completed", new { finalOutput = "Week9 第一阶段已打通。" })
+            Envelope(runId, 12, "2026-04-16T10:00:11Z", "repair_step_started", new
+            {
+                repairStepId = "inspect_failure_context",
+                title = "Inspect failure context",
+                action = "inspect_failure_context",
+                target = "time.now",
+                status = "running",
+                notes = "Inspecting failure evidence."
+            }),
+            Envelope(runId, 13, "2026-04-16T10:00:12Z", "repair_step_completed", new
+            {
+                repairStepId = "inspect_failure_context",
+                title = "Inspect failure context",
+                action = "inspect_failure_context",
+                target = "time.now",
+                status = "completed",
+                notes = "Failure evidence captured."
+            }),
+            Envelope(runId, 14, "2026-04-16T10:00:13Z", "repair_step_started", new
+            {
+                repairStepId = "stabilize_tool_runtime",
+                title = "Inspect tool runtime health and timeout budget",
+                action = "inspect_tool_runtime_health",
+                target = "time.now",
+                status = "running",
+                notes = "Checking provider health."
+            }),
+            Envelope(runId, 15, "2026-04-16T10:00:14Z", "run_completed", new { finalOutput = "Week9 第一阶段已打通。" })
         ]);
 
         var replayRunStore = new TestReplayRunStore();
@@ -169,8 +197,11 @@ public sealed class ReplayQueryServiceTests : IDisposable
         Assert.Equal(6, detail.Memory.VectorTopK);
         Assert.NotNull(detail.Repair);
         Assert.Equal("tool", detail.Repair!.FailureSource);
-        Assert.Equal(2, detail.Repair.Steps.Count);
-        Assert.True(new long[] { 1L, 2L, 3L, 4L, 5L, 6L, 7L, 8L, 9L, 10L, 11L, 12L }.SequenceEqual(events.Select(x => x.Seq)));
+        Assert.Equal(3, detail.Repair.Steps.Count);
+        Assert.Equal("completed", detail.Repair.Steps[0].Status);
+        Assert.Equal("running", detail.Repair.Steps[1].Status);
+        Assert.Equal("planned", detail.Repair.Steps[2].Status);
+        Assert.True(new long[] { 1L, 2L, 3L, 4L, 5L, 6L, 7L, 8L, 9L, 10L, 11L, 12L, 13L, 14L, 15L }.SequenceEqual(events.Select(x => x.Seq)));
     }
 
     public void Dispose()

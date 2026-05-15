@@ -100,6 +100,16 @@ export function RunDetailPage() {
         : null,
     [detail, events],
   );
+  const repairStatusCounts = useMemo(() => {
+    const counts = { planned: 0, running: 0, completed: 0, failed: 0, skipped: 0 };
+    for (const step of detail?.repair?.steps ?? []) {
+      if (step.status in counts) {
+        counts[step.status as keyof typeof counts] += 1;
+      }
+    }
+
+    return counts;
+  }, [detail]);
 
   async function handleCopyEvents() {
     await copyJson(
@@ -425,6 +435,18 @@ export function RunDetailPage() {
                         <dt>{t("detail.repair.reason")}</dt>
                         <dd>{detail.repair.reason ?? t("common.na")}</dd>
                       </div>
+                      <div>
+                        <dt>{t("detail.repair.statusSummary")}</dt>
+                        <dd>
+                          {[
+                            `${t("common.planned")}=${repairStatusCounts.planned}`,
+                            `${t("common.running")}=${repairStatusCounts.running}`,
+                            `${t("common.completed")}=${repairStatusCounts.completed}`,
+                            `${t("common.failed")}=${repairStatusCounts.failed}`,
+                            `${t("common.skipped")}=${repairStatusCounts.skipped}`,
+                          ].join(", ")}
+                        </dd>
+                      </div>
                     </dl>
                   </article>
 
@@ -698,6 +720,8 @@ function getStatusLabel(value: string, t: TranslateFn) {
       return t("common.running");
     case "failed":
       return t("common.failed");
+    case "skipped":
+      return t("common.skipped");
     default:
       return t("common.completed");
   }

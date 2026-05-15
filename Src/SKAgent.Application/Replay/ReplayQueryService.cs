@@ -388,20 +388,72 @@ public sealed class ReplayQueryService
             return null;
 
         var steps = new List<ReplayRepairStepSummary>();
+        var stepOrder = new List<string>();
+        var stepsById = new Dictionary<string, ReplayRepairStepSummary>(StringComparer.OrdinalIgnoreCase);
+
         if (repairEvent.Payload.TryGetProperty("repairSteps", out var repairSteps)
             && repairSteps.ValueKind == JsonValueKind.Array)
         {
             foreach (var step in repairSteps.EnumerateArray())
             {
-                steps.Add(new ReplayRepairStepSummary(
+                var projected = new ReplayRepairStepSummary(
                     Id: GetString(step, "id") ?? string.Empty,
                     Title: GetString(step, "title") ?? "repair-step",
                     Action: GetString(step, "action") ?? "unknown",
                     Target: GetString(step, "target"),
                     Status: GetString(step, "status") ?? "planned",
-                    Notes: GetString(step, "notes")));
+                    Notes: GetString(step, "notes"));
+
+                steps.Add(projected);
+
+                if (!string.IsNullOrWhiteSpace(projected.Id))
+                {
+                    stepOrder.Add(projected.Id);
+                    stepsById[projected.Id] = projected;
+                }
             }
         }
+
+        foreach (var evt in events.Where(x =>
+                     string.Equals(x.Type, "repair_step_started", StringComparison.OrdinalIgnoreCase)
+                     || string.Equals(x.Type, "repair_step_completed", StringComparison.OrdinalIgnoreCase)))
+        {
+            var stepId = GetString(evt.Payload, "repairStepId") ?? GetString(evt.Payload, "id");
+            if (string.IsNullOrWhiteSpace(stepId))
+                continue;
+
+            var normalizedStatus = evt.Type.Equals("repair_step_started", StringComparison.OrdinalIgnoreCase)
+                ? GetString(evt.Payload, "status") ?? "running"
+                : GetString(evt.Payload, "status") ?? "completed";
+
+            if (!stepsById.TryGetValue(stepId, out var current))
+            {
+                current = new ReplayRepairStepSummary(
+                    Id: stepId,
+                    Title: GetString(evt.Payload, "title") ?? stepId,
+                    Action: GetString(evt.Payload, "action") ?? "unknown",
+                    Target: GetString(evt.Payload, "target"),
+                    Status: normalizedStatus,
+                    Notes: GetString(evt.Payload, "notes"));
+                stepOrder.Add(stepId);
+                stepsById[stepId] = current;
+                continue;
+            }
+
+            stepsById[stepId] = current with
+            {
+                Title = GetString(evt.Payload, "title") ?? current.Title,
+                Action = GetString(evt.Payload, "action") ?? current.Action,
+                Target = GetString(evt.Payload, "target") ?? current.Target,
+                Status = normalizedStatus,
+                Notes = GetString(evt.Payload, "notes") ?? current.Notes
+            };
+        }
+
+        steps = stepOrder
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .Select(id => stepsById[id])
+            .ToList();
 
         return new ReplayRepairSummary(
             FailureSource: GetString(repairEvent.Payload, "failureSource"),

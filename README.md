@@ -8,7 +8,8 @@
 - Week7 已完成：Intent Router、Memory Fusion、pgvector、Recent Recall 和事件链路已通过验收。
 - Week8.x 已验证通过：`default` 与 `coach` 双 persona 已可切换，且 `coach` 在对话与 Daily Suggestion 中已体现推进式风格。
 - Week8.5 已验证通过：`planner / chat / daily / embedding / rerank` 的模型路由与 progress recall 已收口。
-- 当前优先级已切到 Week11：在 Week9 Replay UI 与 Week10 Voice MVP 验收完成之后，继续建设 `Reviewer / Repair Plan` 可解释修复链路；当前 replay 已开始接入 `repair_plan_created -> repair_step_* -> run_failed` 事件链。
+- Week11 已完成：在 Week9 Replay UI 与 Week10 Voice MVP 验收完成之后，`Reviewer / Repair Plan` 可解释修复链路已收口；当前 replay 已稳定接入 `repair_plan_created -> repair_step_* -> run_failed` 事件链。
+- 当前优先级已切到 Week12：继续推进 MCP / Skills / Demo 收口，并复用已完成的 repair replay 能力作为 demo 讲解路径。
 - 关于为什么继续当前项目、它与 agent / claw-like 产品的关系、以及未来如何扩展，可参见 [Product Positioning](Docs/01-roadmap/product-positioning.md) 文档。
 
 ## 快速开始
@@ -151,7 +152,12 @@ Week10 当前说明见：
   - `repair_plan_created`
   - `repair_step_started`
   - `repair_step_completed`
-- 当前 replay detail 已开始投影 repair 摘要，并在 Replay UI 中提供独立 repair 面板。
+- 当前 replay detail 已投影 repair 摘要，并会继续叠加 repair step 的实时状态。
+- Replay UI 当前已提供：
+  - repair 面板
+  - repair timeline filter
+  - repair step 状态摘要
+- `planner / executor / tool / memory` 四类失败来源当前都已有测试覆盖。
 - 当前固定决策：
   - Week11 继续强化 failure samples、repair replay 与 demo 展示
   - 不在 Week11 内开启部分自动 repair 执行
