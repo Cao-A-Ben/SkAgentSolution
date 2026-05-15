@@ -245,6 +245,13 @@ pre {
   gap: 12px;
 }
 
+.copy-feedback {
+  margin: 12px 0 0;
+  color: var(--accent);
+  font-size: 0.92rem;
+  font-weight: 600;
+}
+
 .panel {
   padding: 24px;
 }
@@ -753,6 +760,11 @@ pre {
   border: 0;
   font: inherit;
   cursor: pointer;
+}
+
+.action-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 .action-button--secondary {

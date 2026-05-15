@@ -24,6 +24,7 @@ export function RunDetailPage() {
   const [error, setError] = useState<string | null>(null);
   const [reloadToken, setReloadToken] = useState(0);
   const [eventFilter, setEventFilter] = useState<EventGroup>("all");
+  const [copyFeedback, setCopyFeedback] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -84,6 +85,43 @@ export function RunDetailPage() {
     () => buildReplaySignals(events, t),
     [events, t],
   );
+  const runBundle = useMemo(
+    () =>
+      detail
+        ? {
+            exportedAt: new Date().toISOString(),
+            run: detail.summary,
+            prompt: detail.prompt ?? null,
+            steps: detail.steps,
+            memory: detail.memory ?? null,
+            events,
+          }
+        : null,
+    [detail, events],
+  );
+
+  async function handleCopyEvents() {
+    await copyJson(
+      events,
+      t("detail.copy.eventsSuccess"),
+      t("detail.copy.failure"),
+      setCopyFeedback,
+    );
+  }
+
+  async function handleCopyBundle() {
+    if (!runBundle) {
+      setCopyFeedback(t("detail.copy.failure"));
+      return;
+    }
+
+    await copyJson(
+      runBundle,
+      t("detail.copy.bundleSuccess"),
+      t("detail.copy.failure"),
+      setCopyFeedback,
+    );
+  }
 
   return (
     <section className="page">
@@ -92,8 +130,25 @@ export function RunDetailPage() {
           <p className="eyebrow">{t("detail.eyebrow")}</p>
           <h2>{detail?.summary.goal ?? detail?.summary.runId ?? t("detail.titleFallback")}</h2>
           <p className="page-copy">{t("detail.copy")}</p>
+          {copyFeedback ? <p className="copy-feedback">{copyFeedback}</p> : null}
         </div>
         <div className="header-actions">
+          <button
+            className="action-button"
+            disabled={!detail}
+            onClick={() => void handleCopyBundle()}
+            type="button"
+          >
+            {t("detail.copy.bundle")}
+          </button>
+          <button
+            className="action-button action-button--secondary"
+            disabled={events.length === 0}
+            onClick={() => void handleCopyEvents()}
+            type="button"
+          >
+            {t("detail.copy.events")}
+          </button>
           <button
             className="action-button action-button--secondary"
             onClick={() => setReloadToken((value) => value + 1)}
@@ -508,6 +563,35 @@ export function RunDetailPage() {
       ) : null}
     </section>
   );
+}
+
+async function copyJson(
+  value: unknown,
+  successMessage: string,
+  failureMessage: string,
+  setFeedback: (message: string) => void,
+) {
+  const text = JSON.stringify(value, null, 2);
+
+  try {
+    if (navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(text);
+    } else {
+      const textarea = document.createElement("textarea");
+      textarea.value = text;
+      textarea.setAttribute("readonly", "true");
+      textarea.style.position = "absolute";
+      textarea.style.left = "-9999px";
+      document.body.appendChild(textarea);
+      textarea.select();
+      document.execCommand("copy");
+      document.body.removeChild(textarea);
+    }
+
+    setFeedback(successMessage);
+  } catch {
+    setFeedback(failureMessage);
+  }
 }
 
 function getGroupLabel(
