@@ -165,6 +165,7 @@ Week10 当前说明见：
 Week11 当前说明见：
 
 - [Repair Plan](Docs/03-modules/repair-plan.md)
+- [Week11 Acceptance Runbook](Docs/03-modules/week11-acceptance-runbook.md)
 
 ## 当前可直接调用的 Week8.x 入口
 

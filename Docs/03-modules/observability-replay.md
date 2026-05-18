@@ -7,6 +7,7 @@
   - [Runtime Lifecycle](../02-architecture/runtime-lifecycle.md)
   - [Memory & Retrieval](./memory-retrieval.md)
   - [Week7 Acceptance Runbook](./week7-acceptance-runbook.md)
+  - [Week11 Acceptance Runbook](./week11-acceptance-runbook.md)
 
 ## 文档目的
 

@@ -7,6 +7,7 @@
   - [Product Journey](../01-roadmap/product-journey.md)
   - [System Overview](../02-architecture/system-overview.md)
   - [Observability & Replay](./observability-replay.md)
+  - [Week11 Acceptance Runbook](./week11-acceptance-runbook.md)
 
 ## 文档目的
 
