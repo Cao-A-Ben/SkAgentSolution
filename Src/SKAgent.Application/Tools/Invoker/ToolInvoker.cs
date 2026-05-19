@@ -21,6 +21,7 @@ namespace SKAgent.Application.Tools.Invoker
     {
         /// <summary>工具注册表，用于按名称查找工具实例。</summary>
         private readonly IToolRegistry _registry;
+        private readonly IToolAccessPolicy _toolAccessPolicy;
 
         /// <summary>预分配的空 JSON 对象，避免失败时重复解析。</summary>
         private static readonly JsonElement EmptyJson =
@@ -30,9 +31,10 @@ namespace SKAgent.Application.Tools.Invoker
         /// 初始化工具调用器。
         /// </summary>
         /// <param name="registry">工具注册表实例。</param>
-        public ToolInvoker(IToolRegistry registry)
+        public ToolInvoker(IToolRegistry registry, IToolAccessPolicy? toolAccessPolicy = null)
         {
             _registry = registry ?? throw new ArgumentNullException(nameof(registry));
+            _toolAccessPolicy = toolAccessPolicy ?? new AllowAllToolAccessPolicy();
         }
 
         /// <summary>
@@ -46,6 +48,16 @@ namespace SKAgent.Application.Tools.Invoker
             {
 
                 return Fail("tool_not_found", $"Tool '{invocation.ToolName}' not found.", 0);
+            }
+
+            var access = _toolAccessPolicy.Evaluate(tool.Descriptor);
+            if (!access.Allowed)
+            {
+                return Fail(
+                    "tool_blocked",
+                    $"External tool '{invocation.ToolName}' was blocked by the configured allowlist.",
+                    0,
+                    new { access.Reason, tool = invocation.ToolName });
             }
 
             var sw = Stopwatch.StartNew();

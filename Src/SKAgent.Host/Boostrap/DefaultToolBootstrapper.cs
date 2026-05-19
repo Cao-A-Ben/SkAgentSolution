@@ -107,6 +107,31 @@ namespace SKAgent.Host.Boostrap
                 return Task.FromResult(output);
             }));
 
+            registry.Register(new FunctionTool(
+                new ToolDescriptor(
+                    Name: "mcp.demo_echo",
+                    Description: "Simulated MCP adapter tool for Week12 demos. Echoes the request through the unified tool path.",
+                    InputSchema: new ToolParameterSchema(
+                        "object",
+                        new Dictionary<string, ToolFieldSchema>
+                        {
+                            ["query"] = new ToolFieldSchema("string", "The request to send to the demo MCP adapter.")
+                        },
+                        new[] { "query" }),
+                    Tags: ["external", "mcp", "demo"],
+                    Idempotent: true),
+                (args, ct) =>
+                {
+                    var query = args.GetProperty("query").GetString() ?? string.Empty;
+                    var output = JsonDocument.Parse(JsonSerializer.Serialize(new
+                    {
+                        ok = true,
+                        adapter = "mcp-demo",
+                        echoedQuery = query
+                    })).RootElement.Clone();
+                    return Task.FromResult(output);
+                }));
+
         }
     }
 }

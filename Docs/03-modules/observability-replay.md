@@ -82,7 +82,9 @@ Week9 起，SkAgent 的 replay 不再只依赖文件扫描，而是采用 `Postg
 - daily_job_finished
 - daily_job_failed
 - event_payload_redacted
-- 后续预留：external_call_started / finished / blocked
+- external_call_started
+- external_call_finished
+- external_call_blocked
 
 ## 事件载荷规范
 
@@ -202,6 +204,33 @@ Week9 起，SkAgent 的 replay 不再只依赖文件扫描，而是采用 `Postg
 - target
 - status
 - notes
+
+### Week12 关键 payload
+
+#### `external_call_started`
+
+- order
+- toolName
+- tags[]
+- policyReason
+- argsPreview
+
+#### `external_call_finished`
+
+- order
+- toolName
+- success
+- latencyMs
+- errorCode
+- policyReason
+- tags[]
+
+#### `external_call_blocked`
+
+- order
+- toolName
+- reason
+- tags[]
 
 #### `repair_step_completed`
 

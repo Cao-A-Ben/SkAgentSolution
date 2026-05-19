@@ -14,11 +14,19 @@ namespace SKAgent.Application.Tools.Registry
     {
         /// <summary>工具实例字典，key 为工具名称（忽略大小写）。</summary>
         private readonly Dictionary<string, ITool> _tools = new(StringComparer.OrdinalIgnoreCase);
+        private readonly IToolAccessPolicy _toolAccessPolicy;
+
+        public ToolRegistry(IToolAccessPolicy? toolAccessPolicy = null)
+        {
+            _toolAccessPolicy = toolAccessPolicy ?? new AllowAllToolAccessPolicy();
+        }
 
         /// <inheritdoc />
         public IReadOnlyList<ToolDescriptor> List()
         {
-            return [.. _tools.Values.Select(d => d.Descriptor)];
+            return [.. _tools.Values
+                .Select(d => d.Descriptor)
+                .Where(descriptor => _toolAccessPolicy.Evaluate(descriptor).VisibleToPlanner)];
         }
 
         /// <inheritdoc />

@@ -35,7 +35,7 @@ Tool 是 Runtime 可以调度的外部能力单元。它们可能是：
 - Runtime 仍通过统一 Tool 协议调度它。
 - Allowlist、权限、审计和脱敏统一复用现有事件体系。
 
-### Week11 目标
+### Week12 目标
 
 - 增加 `ExternalCallPolicy`。
 - 增加 `McpToolAdapter`。
@@ -51,5 +51,10 @@ Tool 是 Runtime 可以调度的外部能力单元。它们可能是：
 ## 当前状态
 
 - Tool 基础协议已存在。
-- MCP 仍处于规划阶段。
-- 文档体系已经为后续 Week11 / Week12 预留位置。
+- Week12 第一阶段已开始实现：
+  - external/MCP tool allowlist
+  - planner 可见工具目录过滤
+  - 统一 external call audit 事件
+- 当前已新增演示型 external tool：
+  - `mcp.demo_echo`
+- 真正的 MCP adapter 与 skill 示例仍在后续阶段继续推进。

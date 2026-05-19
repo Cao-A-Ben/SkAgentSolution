@@ -172,6 +172,18 @@ Week11 当前说明见：
 - [Repair Plan](Docs/03-modules/repair-plan.md)
 - [Week11 Acceptance Runbook](Docs/03-modules/week11-acceptance-runbook.md)
 
+## Week12 当前实现口径
+
+- Week12 已开始实现，当前第一阶段聚焦：
+  - 统一 external/MCP tool allowlist
+  - `external_call_started / external_call_finished / external_call_blocked` 审计事件
+  - planner 可见工具目录与执行阶段共用同一套 external tool policy
+- 当前已新增演示型 external tool：
+  - `mcp.demo_echo`
+- 当前固定方向：
+  - 先把 MCP/外部工具纳入统一 Tool / allowlist / audit 体系
+  - 再继续推进 skill 示例与 demo runbook 收口
+
 ## 当前可直接调用的 Week8.x 入口
 
 - `GET /api/personas`

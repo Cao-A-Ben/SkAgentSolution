@@ -44,6 +44,15 @@ namespace SKAgent.Application.Reflection
                 );
             }
 
+            if (string.Equals(code, "tool_blocked", StringComparison.OrdinalIgnoreCase))
+            {
+                return new ErrorClassification(
+                    Retryability.NonRetryable,
+                    Category: "tool_blocked",
+                    Reason: "Tool was blocked by the configured external-call policy."
+                );
+            }
+
             if (string.Equals(code, "tool_timeout", StringComparison.OrdinalIgnoreCase))
             {
                 return new ErrorClassification(

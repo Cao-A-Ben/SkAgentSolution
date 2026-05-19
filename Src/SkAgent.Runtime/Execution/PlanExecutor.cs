@@ -43,6 +43,8 @@ namespace SkAgent.Runtime.Execution
 
         /// <summary>工具调用器，负责执行 Kind=Tool 的步骤。</summary>
         private readonly IToolInvoker _toolInvoker;
+        private readonly IToolRegistry? _toolRegistry;
+        private readonly IToolAccessPolicy _toolAccessPolicy;
 
         /// <summary>反思 Agent，用于处理失败后的重试决策。</summary>
         private readonly IReflectionAgent _reflectionAgent;
@@ -63,12 +65,16 @@ namespace SkAgent.Runtime.Execution
         /// <param name="personaManager">人格管理器实例。</param>
         public PlanExecutor(IStepRouter router, IToolInvoker toolInvoker,
             IReflectionAgent reflectionAgent,
-            IReviewer reviewer)
+            IReviewer reviewer,
+            IToolRegistry? toolRegistry = null,
+            IToolAccessPolicy? toolAccessPolicy = null)
         {
             _router = router;
             _toolInvoker = toolInvoker;
             _reflectionAgent = reflectionAgent;
             _reviewer = reviewer;
+            _toolRegistry = toolRegistry;
+            _toolAccessPolicy = toolAccessPolicy ?? new AllowAllToolAccessPolicy();
             //_personaManager = personaManager;
             //_memoryOrchestrator = memoryOrchestrator;
         }
@@ -357,6 +363,59 @@ namespace SkAgent.Runtime.Execution
                 ToolName: toolName,
                 Arguments: args);
 
+            var access = ResolveToolAccess(toolName);
+            if (access.IsExternal && !access.Allowed)
+            {
+                await run.EmitAsync("external_call_blocked", new
+                {
+                    order = step.Order,
+                    toolName,
+                    reason = access.Reason,
+                    tags = access.Tags
+                }, run.Root.CancellationToken);
+
+                exec.Output = string.Empty;
+                exec.Status = StepExecutionStatus.Failed;
+                exec.Error = $"External tool blocked by policy: {toolName}";
+
+                var blockedOutput = JsonDocument.Parse("{}").RootElement.Clone();
+                var blockedResult = new ToolResult(
+                    Success: false,
+                    Output: blockedOutput,
+                    Error: new ToolError("tool_blocked", exec.Error, new { access.Reason, toolName }),
+                    Metrics: new ToolMetrics(0));
+
+                run.ToolCalls.Add(new ToolCallRecord(
+                    StepOrder: step.Order,
+                    ToolName: toolName,
+                    ArgsPreview: PreviewJson(argsJson, 300),
+                    Success: false,
+                    OutputPreview: null,
+                    ErrorCode: blockedResult.Error?.Code,
+                    ErrorMessage: blockedResult.Error?.Message,
+                    LatencyMs: 0));
+
+                UpdateWorkingMemoryForStep(run, step, exec);
+                UpdateWorkingMemoryForTool(run, step.Order, toolName, argsJson, blockedResult);
+
+                return (false, new ErrorInfo(
+                    Code: blockedResult.Error?.Code,
+                    Message: blockedResult.Error?.Message ?? exec.Error,
+                    HttpStatus: null));
+            }
+
+            if (access.IsExternal && access.RequiresAudit)
+            {
+                await run.EmitAsync("external_call_started", new
+                {
+                    order = step.Order,
+                    toolName,
+                    tags = access.Tags,
+                    policyReason = access.Reason,
+                    argsPreview = TextPreview.Preview(argsJson, 300)
+                }, run.Root.CancellationToken);
+            }
+
             await run.EmitAsync("tool_invoked", new
             {
                 order = step.Order,
@@ -374,6 +433,20 @@ namespace SkAgent.Runtime.Execution
                 latencyMs = result.Metrics?.LatencyMs ?? 0,
                 outputPreview = TextPreview.Preview(result.Output.ToString(), 600)
             }, run.Root.CancellationToken);
+
+            if (access.IsExternal && access.RequiresAudit)
+            {
+                await run.EmitAsync("external_call_finished", new
+                {
+                    order = step.Order,
+                    toolName,
+                    success = result.Success,
+                    latencyMs = result.Metrics?.LatencyMs ?? 0,
+                    errorCode = result.Error?.Code,
+                    policyReason = access.Reason,
+                    tags = access.Tags
+                }, run.Root.CancellationToken);
+            }
 
             exec.Output = result.Output.ToString();
             exec.Status = result.Success ? StepExecutionStatus.Success : StepExecutionStatus.Failed;
@@ -402,6 +475,22 @@ namespace SkAgent.Runtime.Execution
                 HttpStatus: null);
 
             return (false, err);
+        }
+
+        private (bool IsExternal, bool Allowed, bool RequiresAudit, string? Reason, IReadOnlyList<string> Tags) ResolveToolAccess(string toolName)
+        {
+            if (_toolRegistry is null || !_toolRegistry.TryGet(toolName, out var tool))
+            {
+                return (false, true, false, null, Array.Empty<string>());
+            }
+
+            var decision = _toolAccessPolicy.Evaluate(tool.Descriptor);
+            return (
+                decision.IsExternal,
+                decision.Allowed,
+                decision.RequiresAudit,
+                decision.Reason,
+                tool.Descriptor.Tags ?? Array.Empty<string>());
         }
 
         private async Task<(bool Success, ErrorInfo? Error)> TryExecuteAgentStepAsync(

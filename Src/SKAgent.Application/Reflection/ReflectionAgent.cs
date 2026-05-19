@@ -126,6 +126,27 @@ namespace SKAgent.Application.Reflection
             FailureReviewRequest request,
             string? failedTarget)
         {
+            if (classification.Category == "tool_blocked")
+            {
+                return
+                [
+                    new RepairPlanStep(
+                        Id: "inspect_external_tool_policy",
+                        Title: "Inspect external tool policy and audit trail",
+                        Action: "inspect_external_tool_policy",
+                        Target: failedTarget,
+                        Status: RepairStepStatus.Planned,
+                        Notes: $"Confirm whether tool '{failedTarget ?? "unknown"}' is tagged as external/MCP and review the block reason from the audit events."),
+                    new RepairPlanStep(
+                        Id: "update_allowlist_or_replan",
+                        Title: "Update allowlist or replan with an internal tool",
+                        Action: "update_allowlist_or_replan",
+                        Target: failedTarget,
+                        Status: RepairStepStatus.Planned,
+                        Notes: "Do not force execution. Either explicitly allowlist the external tool or rebuild the plan with an approved internal tool path.")
+                ];
+            }
+
             if (classification.Category == "tool_not_found")
             {
                 return

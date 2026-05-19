@@ -16,6 +16,7 @@ using SKAgent.Application.Replay;
 using SKAgent.Application.Reflection;
 using SKAgent.Application.Retrieval;
 using SKAgent.Application.Runtime;
+using SKAgent.Application.Tools.Governance;
 using SKAgent.Application.Tools.Invoker;
 using SKAgent.Application.Tools.Registry;
 using SKAgent.Application.Voice;
@@ -78,6 +79,8 @@ public static class DependencyInjection
         services.AddSingleton(sp => sp.GetRequiredService<Microsoft.Extensions.Options.IOptions<VoiceGatewayOptions>>().Value);
         services.Configure<KokoroTtsOptions>(configuration.GetSection(KokoroTtsOptions.SectionName));
         services.AddSingleton(sp => sp.GetRequiredService<Microsoft.Extensions.Options.IOptions<KokoroTtsOptions>>().Value);
+        services.Configure<ToolPolicyOptions>(configuration.GetSection("ToolPolicy"));
+        services.AddSingleton(sp => sp.GetRequiredService<Microsoft.Extensions.Options.IOptions<ToolPolicyOptions>>().Value);
 
         services.AddHttpClient<OpenAiCompatibleVoiceGateway>((sp, client) =>
         {
@@ -139,6 +142,7 @@ public static class DependencyInjection
         services.AddSingleton<IUserProfileStore, InMemoryUserProfileStore>();
         services.AddSingleton<IProfileExtractor, ProfileExtractor>();
 
+        services.AddSingleton<IToolAccessPolicy, ConfiguredToolAccessPolicy>();
         services.AddSingleton<IToolRegistry, ToolRegistry>();
         services.AddSingleton<IToolInvoker, ToolInvoker>();
         services.AddSingleton<IToolBootstrapper, DefaultToolBootstrapper>();
