@@ -1,6 +1,6 @@
 # Repair Plan
 
-- Status: Week11 Completed
+- Status: Week11 Ready for Acceptance
 - Owner: Ben + Codex
 - Last Updated: 2026-05-15
 - Related:
@@ -72,7 +72,7 @@
 
 ## 当前边界
 
-- 已完成：
+- 已完成实现：
   - reviewer 抽象
   - repair plan 模型
   - tool/executor/planner/memory 的基础失败分流

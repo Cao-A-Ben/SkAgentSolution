@@ -84,7 +84,7 @@
 
 ### 文档检查
 
-以下文档应已更新为 Week11 完成口径：
+以下文档应已更新为 Week11 “已完成实现、待正式验收” 口径：
 
 - [README.md](../../README.md)
 - [Product Journey](../01-roadmap/product-journey.md)
