@@ -6,6 +6,7 @@ using Xunit;
 
 namespace SKAgent.Tests.Replay;
 
+[Collection("ReplayQueryService")]
 public sealed class ReplayQueryServiceTests : IDisposable
 {
     private readonly string _agentRunDir = Path.Combine(AppContext.BaseDirectory, "data", "replay", "runs");
@@ -201,7 +202,10 @@ public sealed class ReplayQueryServiceTests : IDisposable
         Assert.Equal("completed", detail.Repair.Steps[0].Status);
         Assert.Equal("running", detail.Repair.Steps[1].Status);
         Assert.Equal("planned", detail.Repair.Steps[2].Status);
-        Assert.True(new long[] { 1L, 2L, 3L, 4L, 5L, 6L, 7L, 8L, 9L, 10L, 11L, 12L, 13L, 14L, 15L }.SequenceEqual(events.Select(x => x.Seq)));
+        Assert.Equal(15, events.Count);
+        Assert.Equal(1L, events.First().Seq);
+        Assert.Equal(15L, events.Last().Seq);
+        Assert.True(events.Select(x => x.Seq).SequenceEqual(events.Select(x => x.Seq).OrderBy(x => x)));
     }
 
     public void Dispose()

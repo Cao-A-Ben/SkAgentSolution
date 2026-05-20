@@ -31,6 +31,14 @@ export type ReplayPrompt = {
   userText?: string | null;
 };
 
+export type ReplaySkill = {
+  name: string;
+  displayName?: string | null;
+  description?: string | null;
+  source?: string | null;
+  recommendedTools: string[];
+};
+
 export type ReplayStep = {
   order: number;
   kind?: string | null;
@@ -83,6 +91,7 @@ export type ReplayRepair = {
 export type ReplayRunDetail = {
   summary: ReplayRunSummary;
   prompt?: ReplayPrompt | null;
+  skill?: ReplaySkill | null;
   steps: ReplayStep[];
   memory?: ReplayMemory | null;
   repair?: ReplayRepair | null;

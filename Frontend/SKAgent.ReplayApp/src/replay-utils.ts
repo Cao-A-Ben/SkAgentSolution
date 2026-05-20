@@ -3,6 +3,7 @@ import type { ReplayEvent, ReplayRunSummary } from "./types";
 
 export const milestoneEventTypes = [
   "persona_selected",
+  "skill_selected",
   "model_selected",
   "prompt_composed",
   "recall_summary_built",
@@ -123,6 +124,12 @@ export function summarizeEvent(event: ReplayEvent, t: TranslateFn) {
             model: String(payload.model),
           })
         : t("event.summary.modelSelected");
+    case "skill_selected":
+      return payload?.skillName
+        ? t("event.summary.skillSelected", {
+            skillName: String(payload.skillName),
+          })
+        : t("event.summary.skillSelectedFallback");
     case "prompt_composed":
       return payload?.target
         ? t("event.summary.promptBuilt", { target: String(payload.target) })

@@ -3,6 +3,7 @@ using SkAgent.Runtime.Runtime;
 using SKAgent.Core.Agent;
 using SKAgent.Core.Observability;
 using SKAgent.Core.Replay;
+using SKAgent.Core.Skills;
 using SKAgent.Host.Contracts;
 
 namespace SKAgent.Host.Controllers
@@ -20,6 +21,7 @@ namespace SKAgent.Host.Controllers
         private readonly AgentRuntimeService _runtimeService;
         private readonly IRunEventLogFactory _runEventLogFactory;
         private readonly IReplayRunStore _replayRunStore;
+        private readonly ISkillRegistry _skillRegistry;
 
         /// <summary>
         /// 初始化控制器。
@@ -28,11 +30,13 @@ namespace SKAgent.Host.Controllers
         public AgentController(
             AgentRuntimeService runtimeService,
             IRunEventLogFactory runEventLogFactory,
-            IReplayRunStore replayRunStore)
+            IReplayRunStore replayRunStore,
+            ISkillRegistry skillRegistry)
         {
             _runtimeService = runtimeService;
             _runEventLogFactory = runEventLogFactory;
             _replayRunStore = replayRunStore;
+            _skillRegistry = skillRegistry;
         }
 
         /// <summary>
@@ -98,6 +102,12 @@ namespace SKAgent.Host.Controllers
         {
             var ct = HttpContext.RequestAborted;
 
+            if (!string.IsNullOrWhiteSpace(req.SkillName)
+                && _skillRegistry.GetByName(req.SkillName) is null)
+            {
+                return BadRequest(new { error = $"Skill not found: {req.SkillName}" });
+            }
+
             // 1. 解析或生成会话 ID
             var conversationId = !string.IsNullOrWhiteSpace(req.ConversationId)
                 ? req.ConversationId : Guid.NewGuid().ToString("N");
@@ -113,7 +123,8 @@ namespace SKAgent.Host.Controllers
                 runId,
                 eventLog.Sink,
                 initialEventSeq: 0,
-                ct);
+                ct: ct,
+                requestedSkillName: req.SkillName);
             await _replayRunStore.SaveAsync(ToReplayRunRecord(run, eventLog.Path, startedAtUtc, DateTimeOffset.UtcNow), ct);
 
             // 3. 从 ConversationState 中提取画像快照

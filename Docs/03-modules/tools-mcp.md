@@ -57,4 +57,11 @@ Tool 是 Runtime 可以调度的外部能力单元。它们可能是：
   - 统一 external call audit 事件
 - 当前已新增演示型 external tool：
   - `mcp.demo_echo`
+- 当前已新增最小 skill runtime 示例：
+  - `tech.mcp_demo`
+  - `GET /api/skills`
+- 当前 skill 的接入方式仍然遵循统一 Runtime：
+  - request -> skill_selected -> planner hint -> tool allowlist/audit -> replay
+- 当前 Week12 已新增演示收口文档：
+  - `Docs/03-modules/demo-runbook.md`
 - 真正的 MCP adapter 与 skill 示例仍在后续阶段继续推进。

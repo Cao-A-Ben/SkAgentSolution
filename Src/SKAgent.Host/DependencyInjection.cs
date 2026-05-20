@@ -16,6 +16,7 @@ using SKAgent.Application.Replay;
 using SKAgent.Application.Reflection;
 using SKAgent.Application.Retrieval;
 using SKAgent.Application.Runtime;
+using SKAgent.Application.Skills;
 using SKAgent.Application.Tools.Governance;
 using SKAgent.Application.Tools.Invoker;
 using SKAgent.Application.Tools.Registry;
@@ -40,6 +41,7 @@ using SKAgent.Core.Retrieval;
 using SKAgent.Core.Routing;
 using SKAgent.Core.Runtime;
 using SKAgent.Core.Suggestions;
+using SKAgent.Core.Skills;
 using SKAgent.Core.Tools.Abstractions;
 using SKAgent.Core.Voice;
 using SKAgent.Host.Boostrap;
@@ -146,6 +148,7 @@ public static class DependencyInjection
         services.AddSingleton<IToolRegistry, ToolRegistry>();
         services.AddSingleton<IToolInvoker, ToolInvoker>();
         services.AddSingleton<IToolBootstrapper, DefaultToolBootstrapper>();
+        services.AddSingleton<ISkillRegistry>(_ => new InMemorySkillRegistry(SkillCatalog.All));
 
         var storePath = Path.Combine(AppContext.BaseDirectory, "data", "conversation-persona.json");
         services.AddSingleton<IConversationPersonaStore>(_ => new FileConversationPersonaStore(storePath));

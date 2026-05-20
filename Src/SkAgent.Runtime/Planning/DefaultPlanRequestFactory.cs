@@ -5,6 +5,7 @@ using SKAgent.Core.Memory.ShortTerm;
 using SKAgent.Core.Personas;
 using SKAgent.Core.Planning;
 using SKAgent.Core.Runtime;
+using SKAgent.Core.Skills;
 
 namespace SkAgent.Runtime.Planning
 {
@@ -31,6 +32,8 @@ namespace SkAgent.Runtime.Planning
             var hint = "";
             if (run.ConversationState.TryGetValue("persona", out var po) && po is PersonaOptions persona)
                 hint = persona.PlannerHint ?? "";
+            if (run.ConversationState.TryGetValue("skill", out var skillObj) && skillObj is RuntimeSkillDefinition skill && !string.IsNullOrWhiteSpace(skill.PlannerHint))
+                hint = string.IsNullOrWhiteSpace(hint) ? skill.PlannerHint : $"{hint}\n{skill.PlannerHint}";
 
             // debug flag（可选）
             var debug =

@@ -45,6 +45,7 @@ public sealed class ReplayQueryService
         return new ReplayRunDetail(
             ProjectSummary(events, source.Kind, source.Suggestion),
             ProjectPrompt(events),
+            ProjectSkill(events),
             ProjectSteps(events),
             ProjectMemory(events),
             ProjectRepair(events));
@@ -338,6 +339,24 @@ public sealed class ReplayQueryService
             .OrderBy(x => x.Order)
             .Select(x => new ReplayStepSummary(x.Order, x.Kind, x.Target, x.Status, x.OutputPreview, x.Error))
             .ToList();
+    }
+
+    private static ReplaySkillSummary? ProjectSkill(IReadOnlyList<ReplayEventEnvelope> events)
+    {
+        var skillEvent = events.LastOrDefault(x => string.Equals(x.Type, "skill_selected", StringComparison.OrdinalIgnoreCase));
+        if (skillEvent is null)
+            return null;
+
+        var name = GetString(skillEvent.Payload, "skillName");
+        if (string.IsNullOrWhiteSpace(name))
+            return null;
+
+        return new ReplaySkillSummary(
+            Name: name,
+            DisplayName: GetString(skillEvent.Payload, "displayName"),
+            Description: GetString(skillEvent.Payload, "description"),
+            Source: GetString(skillEvent.Payload, "source"),
+            RecommendedTools: GetStringArray(skillEvent.Payload, "recommendedTools"));
     }
 
     private static ReplayMemorySummary? ProjectMemory(IReadOnlyList<ReplayEventEnvelope> events)

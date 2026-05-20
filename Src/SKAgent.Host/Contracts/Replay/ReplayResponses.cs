@@ -59,6 +59,19 @@ public sealed class ReplayPromptResponse
     public string? UserText { get; init; }
 }
 
+public sealed class ReplaySkillResponse
+{
+    public string Name { get; init; } = string.Empty;
+
+    public string? DisplayName { get; init; }
+
+    public string? Description { get; init; }
+
+    public string? Source { get; init; }
+
+    public IReadOnlyList<string> RecommendedTools { get; init; } = Array.Empty<string>();
+}
+
 public sealed class ReplayStepResponse
 {
     public int Order { get; init; }
@@ -147,6 +160,8 @@ public sealed class ReplayRunDetailResponse
     public ReplayRunSummaryResponse Summary { get; init; } = new();
 
     public ReplayPromptResponse? Prompt { get; init; }
+
+    public ReplaySkillResponse? Skill { get; init; }
 
     public IReadOnlyList<ReplayStepResponse> Steps { get; init; } = Array.Empty<ReplayStepResponse>();
 

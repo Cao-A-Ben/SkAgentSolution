@@ -115,7 +115,8 @@ namespace SkAgent.Runtime.Runtime
             string? runId = null,
             IRunEventSink? eventSink = null,
             long initialEventSeq = 0,
-            CancellationToken ct = default)
+            CancellationToken ct = default,
+            string? requestedSkillName = null)
         {
 
             // 1. 创建 Root AgentContext
@@ -128,6 +129,9 @@ namespace SkAgent.Runtime.Runtime
 
             if (!string.IsNullOrWhiteSpace(requestedPersonaName))
                 agentContext.State["requestedPersonaName"] = requestedPersonaName.Trim();
+
+            if (!string.IsNullOrWhiteSpace(requestedSkillName))
+                agentContext.State["requestedSkillName"] = requestedSkillName.Trim();
 
             // 2. 创建 AgentRunContext（SSOT），封装本次运行的所有状态
             var run = new AgentRunContext(

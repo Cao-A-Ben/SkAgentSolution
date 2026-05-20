@@ -22,6 +22,13 @@
         public string? PersonaName { get; set; }
 
         /// <summary>
+        /// 可选的 skill 名称。
+        /// - 若提供，则本次运行优先加载该 demo/domain skill。
+        /// - 若未提供，则继续按默认无 skill 路线执行。
+        /// </summary>
+        public string? SkillName { get; set; }
+
+        /// <summary>
         /// 用户输入文本（必填）。
         /// </summary>
         public string Input { get; init; } = string.Empty;

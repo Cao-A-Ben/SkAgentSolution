@@ -47,6 +47,7 @@ Week9 起，SkAgent 的 replay 不再只依赖文件扫描，而是采用 `Postg
 ### Runtime 事件
 
 - run_started
+- skill_selected
 - prompt_composed
 - plan_generated
 - step_started / step_finished
@@ -206,6 +207,17 @@ Week9 起，SkAgent 的 replay 不再只依赖文件扫描，而是采用 `Postg
 - notes
 
 ### Week12 关键 payload
+
+#### `skill_selected`
+
+- conversationId
+- skillName
+- displayName
+- description
+- recommendedTools[]
+- source
+
+Week12 当前 replay detail 会把该事件继续投影为独立 `skill` 摘要区，直接用于 demo 讲解。
 
 #### `external_call_started`
 

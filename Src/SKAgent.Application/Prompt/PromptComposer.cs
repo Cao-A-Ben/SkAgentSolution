@@ -6,6 +6,7 @@ using SkAgent.Core.Prompt;
 using SKAgent.Core.Memory;
 using SKAgent.Core.Personas;
 using SKAgent.Core.Runtime;
+using SKAgent.Core.Skills;
 
 namespace SKAgent.Application.Prompt
 {
@@ -33,6 +34,13 @@ namespace SKAgent.Application.Prompt
 
             if (target == PromptTarget.Planner && !string.IsNullOrWhiteSpace(persona.PlannerHint))
                 system = system + "\n\n" + persona.PlannerHint;
+
+            if (run.ConversationState.TryGetValue("skill", out var skillObj)
+                && skillObj is RuntimeSkillDefinition skill
+                && !string.IsNullOrWhiteSpace(skill.SystemPromptAppendix))
+            {
+                system = system + "\n\n" + skill.SystemPromptAppendix;
+            }
 
             var layersUsed = new List<string>();
             var memoryText = BuildMemoryText(bundle, layersUsed);

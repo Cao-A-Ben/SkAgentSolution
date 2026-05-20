@@ -82,6 +82,16 @@ public sealed class ReplayController : ControllerBase
                     SystemText = detail.Prompt.SystemText,
                     UserText = detail.Prompt.UserText
                 },
+            Skill = detail.Skill is null
+                ? null
+                : new ReplaySkillResponse
+                {
+                    Name = detail.Skill.Name,
+                    DisplayName = detail.Skill.DisplayName,
+                    Description = detail.Skill.Description,
+                    Source = detail.Skill.Source,
+                    RecommendedTools = detail.Skill.RecommendedTools
+                },
             Steps = detail.Steps.Select(x => new ReplayStepResponse
             {
                 Order = x.Order,

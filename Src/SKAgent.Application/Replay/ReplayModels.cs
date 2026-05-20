@@ -32,6 +32,13 @@ public sealed record ReplayPromptSummary(
     string? SystemText,
     string? UserText);
 
+public sealed record ReplaySkillSummary(
+    string Name,
+    string? DisplayName,
+    string? Description,
+    string? Source,
+    IReadOnlyList<string> RecommendedTools);
+
 public sealed record ReplayStepSummary(
     int Order,
     string? Kind,
@@ -79,6 +86,7 @@ public sealed record ReplayRepairSummary(
 public sealed record ReplayRunDetail(
     ReplayRunSummary Summary,
     ReplayPromptSummary? Prompt,
+    ReplaySkillSummary? Skill,
     IReadOnlyList<ReplayStepSummary> Steps,
     ReplayMemorySummary? Memory,
     ReplayRepairSummary? Repair);

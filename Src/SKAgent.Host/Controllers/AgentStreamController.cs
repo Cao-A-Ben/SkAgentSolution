@@ -2,6 +2,7 @@
 using SkAgent.Runtime.Runtime;
 using SKAgent.Core.Observability;
 using SKAgent.Core.Replay;
+using SKAgent.Core.Skills;
 using SKAgent.Host.Contracts;
 using SKAgent.Infrastructure.Observability;
 using SKAgent.Runtime.Observability;
@@ -21,15 +22,18 @@ namespace SKAgent.Host.Controllers
         private readonly AgentRuntimeService _runtimeService;
         private readonly IRunEventLogFactory _runEventLogFactory;
         private readonly IReplayRunStore _replayRunStore;
+        private readonly ISkillRegistry _skillRegistry;
 
         public AgentStreamController(
             AgentRuntimeService runtimeService,
             IRunEventLogFactory runEventLogFactory,
-            IReplayRunStore replayRunStore)
+            IReplayRunStore replayRunStore,
+            ISkillRegistry skillRegistry)
         {
             _runtimeService = runtimeService;
             _runEventLogFactory = runEventLogFactory;
             _replayRunStore = replayRunStore;
+            _skillRegistry = skillRegistry;
         }
 
         /// <summary>
@@ -38,6 +42,13 @@ namespace SKAgent.Host.Controllers
         [HttpPost("run")]
         public async Task RunStream([FromBody] AgentRunRequest request)
         {
+            if (!string.IsNullOrWhiteSpace(request.SkillName)
+                && _skillRegistry.GetByName(request.SkillName) is null)
+            {
+                Response.StatusCode = StatusCodes.Status400BadRequest;
+                await Response.WriteAsJsonAsync(new { error = $"Skill not found: {request.SkillName}" });
+                return;
+            }
 
             var sseSink = new SseRunEventSink(Response);
 
@@ -57,7 +68,8 @@ namespace SKAgent.Host.Controllers
                 runId,
                 sink,
                 initialEventSeq: 0,
-                HttpContext.RequestAborted);
+                ct: HttpContext.RequestAborted,
+                requestedSkillName: request.SkillName);
             await _replayRunStore.SaveAsync(new ReplayRunRecord(
                 RunId: run.RunId,
                 Kind: "agent",

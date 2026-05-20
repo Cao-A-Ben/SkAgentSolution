@@ -3,6 +3,7 @@ using SkAgent.Core.Prompt;
 using SKAgent.Application.Memory;
 using SKAgent.Application.Persona;
 using SKAgent.Application.Prompt;
+using SKAgent.Core.Skills;
 using SKAgent.Core.Memory.ShortTerm;
 using SKAgent.Core.Modeling;
 using SKAgent.Core.Personas;
@@ -18,19 +19,22 @@ public sealed class RunPreparationService : IRunPreparationService
     private readonly MemoryOrchestrator _memoryOrchestrator;
     private readonly PromptComposer _promptComposer;
     private readonly IModelRouter _modelRouter;
+    private readonly ISkillRegistry _skillRegistry;
 
     public RunPreparationService(
         PersonaManager personaManager,
         IIntentRouter intentRouter,
         MemoryOrchestrator memoryOrchestrator,
         PromptComposer promptComposer,
-        IModelRouter modelRouter)
+        IModelRouter modelRouter,
+        ISkillRegistry skillRegistry)
     {
         _personaManager = personaManager;
         _intentRouter = intentRouter;
         _memoryOrchestrator = memoryOrchestrator;
         _promptComposer = promptComposer;
         _modelRouter = modelRouter;
+        _skillRegistry = skillRegistry;
     }
 
     public async Task PrepareAsync(IRunContext run, CancellationToken ct)
@@ -97,6 +101,29 @@ public sealed class RunPreparationService : IRunPreparationService
             var bundle = await _memoryOrchestrator.BuildAsync(run, persona, run.UserInput, ct);
             run.ConversationState["memoryBundle"] = bundle;
         }
+
+        if (!run.ConversationState.ContainsKey("skill")
+            && run.ConversationState.TryGetValue("requestedSkillName", out var rs)
+            && rs is string requestedSkillName
+            && !string.IsNullOrWhiteSpace(requestedSkillName))
+        {
+            var skill = _skillRegistry.GetByName(requestedSkillName);
+            if (skill is not null)
+            {
+                run.ConversationState["skill"] = skill;
+                run.ConversationState["skillName"] = skill.Name;
+
+                await run.EmitAsync("skill_selected", new
+                {
+                    conversationId = run.ConversationId,
+                    skillName = skill.Name,
+                    displayName = skill.DisplayName,
+                    description = skill.Description,
+                    recommendedTools = skill.RecommendedTools ?? Array.Empty<string>(),
+                    source = "request"
+                }, ct);
+            }
+        }
     }
 
     public async Task<ComposedPrompt> GetPromptAsync(IRunContext run, PromptTarget target, string task, int charBudget, CancellationToken ct)
@@ -140,6 +167,17 @@ public sealed class RunPreparationService : IRunPreparationService
     private static string BuildPlannerTask(IRunContext run, string currentUserInput)
     {
         var sb = new StringBuilder();
+
+        if (run.ConversationState.TryGetValue("skill", out var skillObj)
+            && skillObj is RuntimeSkillDefinition skill)
+        {
+            sb.AppendLine("[Active Skill]");
+            sb.AppendLine($"name={skill.Name}");
+            sb.AppendLine($"description={skill.Description}");
+            if (skill.RecommendedTools is { Count: > 0 })
+                sb.AppendLine($"recommended_tools={string.Join(", ", skill.RecommendedTools)}");
+            sb.AppendLine();
+        }
 
         if (run.ConversationState.TryGetValue("profile", out var p)
             && p is IReadOnlyDictionary<string, string> profile

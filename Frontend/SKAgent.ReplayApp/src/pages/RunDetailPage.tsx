@@ -92,6 +92,7 @@ export function RunDetailPage() {
             exportedAt: new Date().toISOString(),
             run: detail.summary,
             prompt: detail.prompt ?? null,
+            skill: detail.skill ?? null,
             steps: detail.steps,
             memory: detail.memory ?? null,
             repair: detail.repair ?? null,
@@ -309,6 +310,50 @@ export function RunDetailPage() {
                   </article>
                 </div>
               </div>
+            </section>
+
+            <section className="panel" id="skill">
+              <div className="section-title">
+                <h3>{t("detail.skill.title")}</h3>
+                <p>{t("detail.skill.copy")}</p>
+              </div>
+
+              {!detail.skill ? (
+                <div className="panel panel--empty">{t("detail.skill.empty")}</div>
+              ) : (
+                <div className="diagnostic-grid">
+                  <article className="diagnostic-card">
+                    <dl className="meta-list meta-list--wide">
+                      <div>
+                        <dt>{t("detail.skill.name")}</dt>
+                        <dd>{detail.skill.name}</dd>
+                      </div>
+                      <div>
+                        <dt>{t("detail.skill.displayName")}</dt>
+                        <dd>{detail.skill.displayName ?? t("common.na")}</dd>
+                      </div>
+                      <div>
+                        <dt>{t("common.source")}</dt>
+                        <dd>{detail.skill.source ?? t("common.na")}</dd>
+                      </div>
+                      <div>
+                        <dt>{t("detail.skill.tools")}</dt>
+                        <dd>
+                          {detail.skill.recommendedTools.length > 0
+                            ? detail.skill.recommendedTools.join(", ")
+                            : t("common.na")}
+                        </dd>
+                      </div>
+                    </dl>
+                  </article>
+                  <article className="diagnostic-card">
+                    <h4>{t("detail.skill.description")}</h4>
+                    <p className="preview-copy">
+                      {detail.skill.description ?? t("common.noPreview")}
+                    </p>
+                  </article>
+                </div>
+              )}
             </section>
 
             <section className="panel" id="steps">
@@ -559,6 +604,10 @@ export function RunDetailPage() {
                   <strong>{detail.repair?.steps.length ?? 0}</strong>
                 </article>
                 <article className="stat-card">
+                  <span className="stat-card__label">{t("detail.stats.skillTools")}</span>
+                  <strong>{detail.skill?.recommendedTools.length ?? 0}</strong>
+                </article>
+                <article className="stat-card">
                   <span className="stat-card__label">{t("detail.stats.promptChars")}</span>
                   <strong>
                     {(detail.prompt?.systemChars ?? 0) + (detail.prompt?.userChars ?? 0)}
@@ -597,6 +646,9 @@ export function RunDetailPage() {
                   </a>
                   <a className="section-nav__link" href="#prompt">
                     {t("detail.section.prompt")}
+                  </a>
+                  <a className="section-nav__link" href="#skill">
+                    {t("detail.section.skill")}
                   </a>
                   <a className="section-nav__link" href="#steps">
                     {t("detail.section.steps")}
