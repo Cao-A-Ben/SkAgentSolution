@@ -76,6 +76,77 @@ Scripts/week12/capture-demo-samples.sh --voice-file voice-sample.wav
 - 最稳妥的做法是让 Host 和采样脚本运行在同一侧环境里。
 - 如果是混合环境，例如 Host 跑在 Windows shell、脚本跑在 WSL bash，可能会遇到 `localhost` 不互通；这时请显式传 `--host-url`，或直接在与 Host 相同的 shell 中运行脚本。
 
+## Recording Order
+
+建议录屏顺序固定为：
+
+1. 打开 `GET /api/skills`
+2. 跑 text sample
+3. 在 Replay UI 中打开 text run
+4. 跑 daily sample
+5. 打开 suggestions / replay
+6. 跑 voice sample
+7. 打开 voice replay
+8. 跑 `tech.mcp_demo`
+9. 打开 skill replay detail
+10. 如需治理 drill，重启 Host 为 blocked policy 后再跑 blocked-tool drill
+
+这样做的好处是讲解路径从“正常能力”逐步过渡到“治理与失败可解释性”，节奏最自然。
+
+## Screenshot Naming
+
+建议截图统一按以下格式命名：
+
+```text
+week12-<segment>-<order>-<slug>.png
+```
+
+示例：
+
+- `week12-text-01-run-list.png`
+- `week12-text-02-replay-detail.png`
+- `week12-daily-01-suggestions-list.png`
+- `week12-voice-01-response-meta.png`
+- `week12-skill-01-skills-api.png`
+- `week12-skill-02-skill-selected-timeline.png`
+- `week12-skill-03-skill-panel.png`
+- `week12-skill-04-external-call-finished.png`
+- `week12-blocked-01-external-call-blocked.png`
+- `week12-blocked-02-repair-panel.png`
+
+## Blocked Tool Drill
+
+如果你需要专门证明 allowlist / audit / repair 这条治理链路，可以做一次 blocked-tool drill。
+
+推荐先用阻断策略启动 Host：
+
+```bash
+ToolPolicy__AllowedExternalTools__0=blocked.demo_placeholder \
+  '/mnt/c/Program Files/dotnet/dotnet.exe' run --project Src/SKAgent.Host/SKAgent.Host.csproj
+```
+
+这会覆盖默认数组中的第一个 allowlist 项，从而让 `mcp.demo_echo` 不再可用。
+
+然后运行：
+
+```bash
+Scripts/week12/capture-blocked-tool-drill.sh
+```
+
+期望看到：
+
+- `skill_selected`
+- `external_call_blocked`
+- `repair_plan_created`
+- `repair_step_started`
+- `repair_step_completed`
+
+blocked-tool drill 的意义：
+
+- 证明 planner 可见性和执行期策略是一致的
+- 证明 blocked external tool 也会进入 repair / replay 路径
+- 证明 Week11 的 repair 能力可以自然复用到 Week12 demo
+
 ## Demo Route
 
 ### 1. Text Chat
