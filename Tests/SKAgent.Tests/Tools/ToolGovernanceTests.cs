@@ -37,6 +37,26 @@ public sealed class ToolGovernanceTests
     }
 
     [Fact]
+    public void ToolRegistry_ShouldExposePlannerVisibleButBlockedExternalTools_WhenConfigured()
+    {
+        var policy = CreatePolicy(
+            allowlistedExternalTools: [],
+            plannerVisibleExternalTools: ["mcp.demo_echo"]);
+        var registry = new ToolRegistry(policy);
+
+        registry.Register(CreateTool("mcp.demo_echo", tags: ["external", "mcp"]));
+
+        var descriptors = registry.List();
+        Assert.True(registry.TryGet("mcp.demo_echo", out var tool));
+        var decision = policy.Evaluate(tool.Descriptor);
+
+        Assert.Contains(descriptors, tool => tool.Name == "mcp.demo_echo");
+        Assert.False(decision.Allowed);
+        Assert.True(decision.VisibleToPlanner);
+        Assert.Equal("external_tool_visible_but_blocked", decision.Reason);
+    }
+
+    [Fact]
     public async Task ExecuteAsync_ShouldEmitExternalCallBlocked_WhenExternalToolIsNotAllowlisted()
     {
         var policy = CreatePolicy();
@@ -125,11 +145,14 @@ public sealed class ToolGovernanceTests
         Assert.Equal("mcp.demo_echo", finished.Payload.GetProperty("toolName").GetString());
     }
 
-    private static ConfiguredToolAccessPolicy CreatePolicy(string[]? allowlistedExternalTools = null)
+    private static ConfiguredToolAccessPolicy CreatePolicy(
+        string[]? allowlistedExternalTools = null,
+        string[]? plannerVisibleExternalTools = null)
         => new(new ToolPolicyOptions
         {
             AllowAllExternalTools = false,
             AllowedExternalTools = allowlistedExternalTools ?? [],
+            PlannerVisibleExternalTools = plannerVisibleExternalTools ?? [],
             ExternalTags = ["external", "mcp"]
         });
 

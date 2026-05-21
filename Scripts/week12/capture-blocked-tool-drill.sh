@@ -21,6 +21,7 @@ Important:
 
 Example host launch:
   ToolPolicy__AllowedExternalTools__0=blocked.demo_placeholder \
+  ToolPolicy__PlannerVisibleExternalTools__0=mcp.demo_echo \
   '/mnt/c/Program Files/dotnet/dotnet.exe' run --project Src/SKAgent.Host/SKAgent.Host.csproj
 EOF
 }

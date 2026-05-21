@@ -55,6 +55,36 @@ function Capture-Replay {
     Get-Json -Uri "${HostUrl}/api/replay/runs/$RunId/events" -Path (Join-Path $Dir "$Prefix-replay-events.json") | Out-Null
 }
 
+function Invoke-CurlFileUpload {
+    param(
+        [Parameter(Mandatory = $true)] [string] $Uri,
+        [Parameter(Mandatory = $true)] [string] $ConversationId,
+        [Parameter(Mandatory = $true)] [string] $AudioPath,
+        [Parameter(Mandatory = $true)] [string] $OutputPath
+    )
+
+    $resolvedAudioPath = (Resolve-Path $AudioPath).ProviderPath
+    $resolvedOutputPath = [System.IO.Path]::GetFullPath($OutputPath)
+    $curlArgs = @(
+        "-sS",
+        "--fail",
+        "-X", "POST",
+        $Uri,
+        "-F", "conversationId=$ConversationId",
+        "-F", "audio=@$resolvedAudioPath",
+        "-o", $resolvedOutputPath
+    )
+
+    $process = Start-Process -FilePath "curl.exe" -ArgumentList $curlArgs -Wait -PassThru -NoNewWindow
+    if ($process.ExitCode -ne 0) {
+        throw "curl.exe failed while uploading voice sample to $Uri (exit code: $($process.ExitCode))."
+    }
+
+    if (-not (Test-Path $resolvedOutputPath)) {
+        throw "Voice response file was not created: $resolvedOutputPath"
+    }
+}
+
 try {
     Invoke-RestMethod -Uri "${HostUrl}/api/skills" -Method Get | Out-Null
 }
@@ -98,11 +128,11 @@ if (-not [string]::IsNullOrWhiteSpace($VoiceFile)) {
     }
 
     $voiceJsonPath = Join-Path $outputDir "voice-run.json"
-    & curl.exe -sS --fail `
-        -X POST "${HostUrl}/api/voice/run" `
-        -F "conversationId=demo-week12-voice-001" `
-        -F "audio=@$VoiceFile" `
-        -o $voiceJsonPath
+    Invoke-CurlFileUpload `
+        -Uri "${HostUrl}/api/voice/run" `
+        -ConversationId "demo-week12-voice-001" `
+        -AudioPath $VoiceFile `
+        -OutputPath $voiceJsonPath
 
     $voiceRun = Get-Content -Path $voiceJsonPath -Raw | ConvertFrom-Json
     $voiceRunId = $voiceRun.runId

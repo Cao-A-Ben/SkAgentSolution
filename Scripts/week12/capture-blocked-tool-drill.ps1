@@ -53,12 +53,14 @@ $events = Invoke-RestMethod -Uri "${HostUrl}/api/replay/runs/$($run.runId)/event
 Save-Json -Value $detail -Path (Join-Path $outputDir "skill-blocked-replay-detail.json")
 Save-Json -Value $events -Path (Join-Path $outputDir "skill-blocked-replay-events.json")
 
+$runIdDisplay = $run.runId
+
 $summary = @"
 # Week12 Blocked Tool Drill
 
 - Captured At: $(Get-Date -Format o)
 - Host URL: $HostUrl
-- Run ID: `$($run.runId)`
+- Run ID: $runIdDisplay
 
 ## Expected Events
 
@@ -77,6 +79,7 @@ $summary = @"
 ## Notes
 
 - This drill only passes when `mcp.demo_echo` is not allowlisted.
+- It also assumes `mcp.demo_echo` stays planner-visible through `PlannerVisibleExternalTools`.
 - If `external_call_blocked` is false, restart Host with a blocking policy and rerun this script.
 "@
 

@@ -6,6 +6,7 @@ public sealed class ToolPolicyOptions
 {
     public bool AllowAllExternalTools { get; init; }
     public string[] AllowedExternalTools { get; init; } = [];
+    public string[] PlannerVisibleExternalTools { get; init; } = [];
     public string[] ExternalTags { get; init; } = ["external", "mcp"];
 }
 
@@ -13,6 +14,7 @@ public sealed class ConfiguredToolAccessPolicy : IToolAccessPolicy
 {
     private readonly ToolPolicyOptions _options;
     private readonly HashSet<string> _allowedExternalTools;
+    private readonly HashSet<string> _plannerVisibleExternalTools;
     private readonly HashSet<string> _externalTags;
 
     public ConfiguredToolAccessPolicy(ToolPolicyOptions? options = null)
@@ -20,6 +22,9 @@ public sealed class ConfiguredToolAccessPolicy : IToolAccessPolicy
         _options = options ?? new ToolPolicyOptions();
         _allowedExternalTools = new HashSet<string>(
             _options.AllowedExternalTools ?? [],
+            StringComparer.OrdinalIgnoreCase);
+        _plannerVisibleExternalTools = new HashSet<string>(
+            _options.PlannerVisibleExternalTools ?? [],
             StringComparer.OrdinalIgnoreCase);
         _externalTags = new HashSet<string>(
             _options.ExternalTags ?? [],
@@ -52,11 +57,18 @@ public sealed class ConfiguredToolAccessPolicy : IToolAccessPolicy
         }
 
         var isAllowlisted = _allowedExternalTools.Contains(descriptor.Name);
+        var isPlannerVisible = _plannerVisibleExternalTools.Count == 0
+            ? isAllowlisted
+            : _plannerVisibleExternalTools.Contains(descriptor.Name);
         return new ToolAccessDecision(
             IsExternal: true,
             Allowed: isAllowlisted,
-            VisibleToPlanner: isAllowlisted,
+            VisibleToPlanner: isPlannerVisible,
             RequiresAudit: true,
-            Reason: isAllowlisted ? "external_tool_allowlisted" : "external_tool_not_allowlisted");
+            Reason: isAllowlisted
+                ? "external_tool_allowlisted"
+                : isPlannerVisible
+                    ? "external_tool_visible_but_blocked"
+                    : "external_tool_not_allowlisted");
     }
 }

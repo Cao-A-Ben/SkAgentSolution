@@ -2,7 +2,7 @@
 
 - Status: Active SSOT
 - Owner: Ben + Codex
-- Last Updated: 2026-05-20
+- Last Updated: 2026-05-21
 - Related:
   - [Product Journey](../01-roadmap/product-journey.md)
   - [Observability & Replay](./observability-replay.md)
@@ -82,6 +82,22 @@ Scripts/week12/capture-demo-samples.sh --voice-file voice-sample.wav
 - 最稳妥的做法是让 Host 和采样脚本运行在同一侧环境里。
 - 如果是混合环境，例如 Host 跑在 Windows shell、脚本跑在 WSL bash，可能会遇到 `localhost` 不互通；这时请显式传 `--host-url`，或直接在与 Host 相同的 shell 中运行脚本。
 
+## Captured Reference Bundles
+
+当前仓库里已经保留了两组真实演示证据，可直接用于 Week12 演示与验收留档：
+
+- 主 demo 样例：
+  - `artifacts/week12-demo/20260521-160918/summary.md`
+  - text run: `2c8393f3cde5444e92cbfcb5e21c401c`
+  - daily run: `982200cafa224b1bb9cd0890c7adb733`
+  - skill run: `d6dacf66fc4e42db8f40c7e3ba06a7c5`
+  - voice run: `35a11a1875d744f998eb940137a3438b`
+- blocked-tool drill：
+  - `artifacts/week12-demo-blocked/20260521-161054/summary.md`
+  - blocked run: `0e2f8a1ec4584071b5503b44bc718eec`
+
+建议优先复用这两组证据；如果你需要重新录屏，再运行脚本生成新的时间戳目录即可。
+
 ## Recording Order
 
 建议录屏顺序固定为：
@@ -128,10 +144,16 @@ week12-<segment>-<order>-<slug>.png
 
 ```bash
 ToolPolicy__AllowedExternalTools__0=blocked.demo_placeholder \
+  ToolPolicy__PlannerVisibleExternalTools__0=mcp.demo_echo \
   '/mnt/c/Program Files/dotnet/dotnet.exe' run --project Src/SKAgent.Host/SKAgent.Host.csproj
 ```
 
-这会覆盖默认数组中的第一个 allowlist 项，从而让 `mcp.demo_echo` 不再可用。
+这会让：
+
+- `mcp.demo_echo` 对 planner 仍然可见
+- 但执行期不在 allowlist 中
+
+这样 blocked drill 才能稳定触发 `external_call_blocked`，而不是在 planner 阶段就彻底看不见该工具。
 
 然后运行：
 
