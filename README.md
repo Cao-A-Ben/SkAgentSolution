@@ -191,6 +191,8 @@ Week11 当前说明见：
   - `name / displayName / source / recommendedTools`
 - 当前已新增 Week12 演示收口文档：
   - [Demo Runbook](Docs/03-modules/demo-runbook.md)
+- 当前已新增 Week12 样例采集脚本：
+  - `Scripts/week12/capture-demo-samples.sh`
 - 当前固定方向：
   - 先把 MCP/外部工具纳入统一 Tool / allowlist / audit 体系
   - 再继续推进 skill 示例与 demo runbook 收口

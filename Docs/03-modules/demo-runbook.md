@@ -46,6 +46,36 @@ Week12 不要求：
   - 本地 TTS 已可用
   - `POST /api/voice/run` 可返回 `mp3`
 
+## Sample Capture Script
+
+如果你希望一次性固定 Week12 的 demo 样例、`runId` 和回放证据，可直接运行：
+
+```bash
+Scripts/week12/capture-demo-samples.sh
+```
+
+如需同时采样语音 run：
+
+```bash
+Scripts/week12/capture-demo-samples.sh --voice-file voice-sample.wav
+```
+
+脚本会：
+
+- 调用 `GET /api/skills`
+- 生成 text / daily / skill 样例
+- 可选生成 voice 样例
+- 自动抓取对应 replay detail 与 events
+- 在 `artifacts/week12-demo/<timestamp>/summary.md` 里输出：
+  - `runId`
+  - 建议截图位点
+  - demo 讲解词
+
+注意：
+
+- 最稳妥的做法是让 Host 和采样脚本运行在同一侧环境里。
+- 如果是混合环境，例如 Host 跑在 Windows shell、脚本跑在 WSL bash，可能会遇到 `localhost` 不互通；这时请显式传 `--host-url`，或直接在与 Host 相同的 shell 中运行脚本。
+
 ## Demo Route
 
 ### 1. Text Chat
