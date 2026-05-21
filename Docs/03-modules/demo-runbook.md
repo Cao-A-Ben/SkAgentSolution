@@ -54,6 +54,12 @@ Week12 不要求：
 Scripts/week12/capture-demo-samples.sh
 ```
 
+Windows / PowerShell 环境也可以直接运行：
+
+```powershell
+powershell -ExecutionPolicy Bypass -File Scripts/week12/capture-demo-samples.ps1
+```
+
 如需同时采样语音 run：
 
 ```bash
@@ -131,6 +137,12 @@ ToolPolicy__AllowedExternalTools__0=blocked.demo_placeholder \
 
 ```bash
 Scripts/week12/capture-blocked-tool-drill.sh
+```
+
+Windows / PowerShell 环境对应版本：
+
+```powershell
+powershell -ExecutionPolicy Bypass -File Scripts/week12/capture-blocked-tool-drill.ps1
 ```
 
 期望看到：
