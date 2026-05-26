@@ -1,6 +1,6 @@
 # Repair Plan
 
-- Status: Week11 Ready for Acceptance
+- Status: Week11 Accepted
 - Owner: Ben + Codex
 - Last Updated: 2026-05-15
 - Related:
@@ -8,6 +8,7 @@
   - [System Overview](../02-architecture/system-overview.md)
   - [Observability & Replay](./observability-replay.md)
   - [Week11 Acceptance Runbook](./week11-acceptance-runbook.md)
+  - [Week11 Acceptance Result](./week11-acceptance-result.md)
 
 ## 文档目的
 

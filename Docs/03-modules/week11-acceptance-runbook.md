@@ -1,6 +1,6 @@
 # Week11 Acceptance Runbook
 
-- Status: Ready for Acceptance
+- Status: Accepted
 - Owner: Ben + Codex
 - Last Updated: 2026-05-18
 - Related:
@@ -8,6 +8,7 @@
   - [Repair Plan](./repair-plan.md)
   - [Observability & Replay](./observability-replay.md)
   - [Replay UI](./replay-ui.md)
+  - [Week11 Acceptance Result](./week11-acceptance-result.md)
 
 ## 文档目的
 
@@ -84,7 +85,7 @@
 
 ### 文档检查
 
-以下文档应已更新为 Week11 “已完成实现、待正式验收” 口径：
+以下文档应已更新为 Week11 “已验收通过” 口径：
 
 - [README.md](../../README.md)
 - [Product Journey](../01-roadmap/product-journey.md)

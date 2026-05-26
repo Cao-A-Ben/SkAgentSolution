@@ -8,7 +8,7 @@
 - Week7 已完成：Intent Router、Memory Fusion、pgvector、Recent Recall 和事件链路已通过验收。
 - Week8.x 已验证通过：`default` 与 `coach` 双 persona 已可切换，且 `coach` 在对话与 Daily Suggestion 中已体现推进式风格。
 - Week8.5 已验证通过：`planner / chat / daily / embedding / rerank` 的模型路由与 progress recall 已收口。
-- Week11 已完成实现、待正式验收：在 Week9 Replay UI 与 Week10 Voice MVP 验收完成之后，`Reviewer / Repair Plan` 可解释修复链路已收口；当前 replay 已稳定接入 `repair_plan_created -> repair_step_* -> run_failed` 事件链。
+- Week11 已正式验收通过：在 Week9 Replay UI 与 Week10 Voice MVP 验收完成之后，`Reviewer / Repair Plan` 可解释修复链路已收口；当前 replay 已稳定接入 `repair_plan_created -> repair_step_* -> run_failed` 事件链。
 - 当前优先级已切到 Week12：继续推进 MCP / Skills / Demo 收口，并复用已完成的 repair replay 能力作为 demo 讲解路径。
 - 关于为什么继续当前项目、它与 agent / claw-like 产品的关系、以及未来如何扩展，可参见 [Product Positioning](Docs/01-roadmap/product-positioning.md) 文档。
 
@@ -172,6 +172,7 @@ Week11 当前说明见：
 
 - [Repair Plan](Docs/03-modules/repair-plan.md)
 - [Week11 Acceptance Runbook](Docs/03-modules/week11-acceptance-runbook.md)
+- [Week11 Acceptance Result](Docs/03-modules/week11-acceptance-result.md)
 
 ## Week12 当前实现口径
 
