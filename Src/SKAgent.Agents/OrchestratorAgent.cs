@@ -24,7 +24,7 @@ namespace SKAgent.Agents
             _router = router;
         }
 
-        public async Task<AgentResult> ExecuteAsync(string input)
+        public Task<AgentResult> ExecuteAsync(string input)
         {
             // 1. 让 LLM 决策
             //var decision = await _planner.CreatPlanAsync(input);
@@ -40,8 +40,11 @@ namespace SKAgent.Agents
             //var result = await _router.ExecuteAsync(context);
             //return result;
 
-            return default;
-
+            return Task.FromResult(new AgentResult
+            {
+                IsSuccess = false,
+                Output = "Obsolete orchestrator agent is no longer implemented."
+            });
         }
     }
 }

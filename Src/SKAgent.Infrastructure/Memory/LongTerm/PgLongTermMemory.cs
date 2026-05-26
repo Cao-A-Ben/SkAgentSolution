@@ -199,14 +199,16 @@ public sealed class PgLongTermMemory : ILongTermMemory
             || value.StartsWith("你最近主要推进了:", StringComparison.OrdinalIgnoreCase);
     }
 
-    private static string StripPrefix(string text, string prefix)
+    private static string StripPrefix(string? text, string prefix)
     {
-        if ((text ?? string.Empty).StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
-            return text[prefix.Length..].Trim();
-        return text ?? string.Empty;
+        var value = text ?? string.Empty;
+        if (value.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+            return value[prefix.Length..].Trim();
+
+        return value;
     }
 
-    private static string SingleLine(string text)
+    private static string SingleLine(string? text)
         => (text ?? string.Empty).Replace("\r", " ").Replace("\n", " ").Trim();
 
     private static string Trim(string text, int maxChars)

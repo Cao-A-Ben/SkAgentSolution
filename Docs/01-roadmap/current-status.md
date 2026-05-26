@@ -98,16 +98,13 @@ Week12 is accepted. Remaining work is no longer Week12 implementation, but post-
 
 - keep accepted wording aligned across SSOT docs
 - reuse the canonical demo bundles for any final recording refresh
-- track dependency and warning cleanup separately from Week12 scope
+- track dependency cleanup separately from Week12 scope
 
 ## Current Risks / Debt
 
 - `Microsoft.SemanticKernel.Core` `1.70.0` currently raises a known vulnerability warning during test/build
-- there are still a few compiler/code-analysis warnings:
-  - nullable warnings in infrastructure and agents
-  - `CA2024` warning in `ReplayQueryService`
 
-These do not block the current Week11 / Week12 acceptance path, but should be tracked before broader external rollout.
+This does not block the current Week11 / Week12 acceptance path, but it should be tracked before broader external rollout.
 
 ## Recommended Next Step
 
