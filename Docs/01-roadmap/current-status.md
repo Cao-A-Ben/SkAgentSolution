@@ -11,6 +11,7 @@
   - [Repair Plan](../03-modules/repair-plan.md)
   - [Week11 Acceptance Runbook](../03-modules/week11-acceptance-runbook.md)
   - [Demo Runbook](../03-modules/demo-runbook.md)
+  - [Final Demo Checklist](../03-modules/final-demo-checklist.md)
   - [Week12 Acceptance Runbook](../03-modules/week12-acceptance-runbook.md)
   - [Week12 Acceptance Result](../03-modules/week12-acceptance-result.md)
 

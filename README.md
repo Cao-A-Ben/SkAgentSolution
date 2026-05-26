@@ -75,6 +75,7 @@ npm run dev
 - [Repair Plan](Docs/03-modules/repair-plan.md)
 - [Tools & MCP](Docs/03-modules/tools-mcp.md)
 - [Demo Runbook](Docs/03-modules/demo-runbook.md)
+- [Final Demo Checklist](Docs/03-modules/final-demo-checklist.md)
 - [Week12 Acceptance Runbook](Docs/03-modules/week12-acceptance-runbook.md)
 - [Week12 Acceptance Result](Docs/03-modules/week12-acceptance-result.md)
 
