@@ -2,13 +2,15 @@
 
 - Status: Active SSOT
 - Owner: Ben + Codex
-- Last Updated: 2026-05-21
+- Last Updated: 2026-05-26
 - Related:
   - [Product Journey](../01-roadmap/product-journey.md)
   - [Observability & Replay](./observability-replay.md)
   - [Voice Runtime](./voice-runtime.md)
   - [Tools & MCP](./tools-mcp.md)
   - [Repair Plan](./repair-plan.md)
+  - [Week12 Acceptance Runbook](./week12-acceptance-runbook.md)
+  - [Week12 Acceptance Result](./week12-acceptance-result.md)
 
 ## Purpose
 
@@ -97,6 +99,8 @@ Scripts/week12/capture-demo-samples.sh --voice-file voice-sample.wav
   - blocked run: `0e2f8a1ec4584071b5503b44bc718eec`
 
 建议优先复用这两组证据；如果你需要重新录屏，再运行脚本生成新的时间戳目录即可。
+
+当前这两组 bundle 也已经作为 Week12 正式验收留档证据固定下来。
 
 ## Recording Order
 

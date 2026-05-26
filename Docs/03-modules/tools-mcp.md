@@ -2,10 +2,13 @@
 
 - Status: Active SSOT
 - Owner: Ben + Codex
-- Last Updated: 2026-03-31
+- Last Updated: 2026-05-26
 - Related:
   - [System Overview](../02-architecture/system-overview.md)
   - [Runtime Lifecycle](../02-architecture/runtime-lifecycle.md)
+  - [Demo Runbook](./demo-runbook.md)
+  - [Week12 Acceptance Runbook](./week12-acceptance-runbook.md)
+  - [Week12 Acceptance Result](./week12-acceptance-result.md)
 
 ## 文档目的
 
@@ -60,8 +63,11 @@ Tool 是 Runtime 可以调度的外部能力单元。它们可能是：
 - 当前已新增最小 skill runtime 示例：
   - `tech.mcp_demo`
   - `GET /api/skills`
+- Week12 官方验收样例固定为：
+  - external tool `mcp.demo_echo`
+  - skill `tech.mcp_demo`
 - 当前 skill 的接入方式仍然遵循统一 Runtime：
   - request -> skill_selected -> planner hint -> tool allowlist/audit -> replay
 - 当前 Week12 已新增演示收口文档：
   - `Docs/03-modules/demo-runbook.md`
-- 真正的 MCP adapter 与 skill 示例仍在后续阶段继续推进。
+- 更强的真实 MCP adapter 与 richer skill 示例移到 Week12 之后继续推进。

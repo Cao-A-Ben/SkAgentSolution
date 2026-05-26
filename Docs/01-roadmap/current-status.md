@@ -11,6 +11,8 @@
   - [Repair Plan](../03-modules/repair-plan.md)
   - [Week11 Acceptance Runbook](../03-modules/week11-acceptance-runbook.md)
   - [Demo Runbook](../03-modules/demo-runbook.md)
+  - [Week12 Acceptance Runbook](../03-modules/week12-acceptance-runbook.md)
+  - [Week12 Acceptance Result](../03-modules/week12-acceptance-result.md)
 
 ## Current Phase
 
@@ -19,8 +21,8 @@
 当前建议口径：
 
 - Week11: Accepted
-- Week12: Implemented in core path, pending final acceptance closure
-- Overall: In acceptance and demo closure phase
+- Week12: Accepted
+- Overall: In final closure phase
 
 ## Completed Milestones
 
@@ -60,7 +62,7 @@ Week11 intentionally did not include:
 
 ## Week12 Implemented Scope
 
-Week12 core implementation has already started and the main demo path is in place:
+Week12 core implementation is complete and the main demo path is accepted:
 
 - external tool governance:
   - planner-visible external tools
@@ -92,12 +94,11 @@ Week11 is already accepted. The remaining work is no longer implementation or ac
 
 ### Week12
 
-Week12 is functionally close, but still needs final closure work:
+Week12 is accepted. Remaining work is no longer Week12 implementation, but post-acceptance closure:
 
-- confirm one reproducible end-to-end demo route
-- verify demo evidence bundle is the final preferred set
-- decide whether to keep the current demo skill as the official Week12 sample or replace it with a stronger domain sample
-- complete final acceptance wording in SSOT docs
+- keep accepted wording aligned across SSOT docs
+- reuse the canonical demo bundles for any final recording refresh
+- track dependency and warning cleanup separately from Week12 scope
 
 ## Current Risks / Debt
 
@@ -112,9 +113,9 @@ These do not block the current Week11 / Week12 acceptance path, but should be tr
 
 如果目标是尽快收口，最合理的顺序是：
 
-1. 正式执行 Week11 acceptance runbook，并把结论固定下来。
-2. 复用现有 Week12 demo evidence，跑一次最终 demo walkthrough。
-3. 再决定是否把 Week12 标记为 completed，或追加一个更强的真实 MCP / skill 示例。
+1. Reuse the accepted Week12 demo bundles for any final walkthrough or recording refresh.
+2. Move remaining work into closure/debt buckets instead of continuing Week12 scope creep.
+3. If needed, plan stronger real MCP adapters or richer domain skills as post-Week12 work.
 
 ## Verification Snapshot
 

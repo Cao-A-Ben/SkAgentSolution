@@ -9,7 +9,7 @@
 - Week8.x 已验证通过：`default` 与 `coach` 双 persona 已可切换，且 `coach` 在对话与 Daily Suggestion 中已体现推进式风格。
 - Week8.5 已验证通过：`planner / chat / daily / embedding / rerank` 的模型路由与 progress recall 已收口。
 - Week11 已正式验收通过：在 Week9 Replay UI 与 Week10 Voice MVP 验收完成之后，`Reviewer / Repair Plan` 可解释修复链路已收口；当前 replay 已稳定接入 `repair_plan_created -> repair_step_* -> run_failed` 事件链。
-- 当前优先级已切到 Week12：继续推进 MCP / Skills / Demo 收口，并复用已完成的 repair replay 能力作为 demo 讲解路径。
+- Week12 已正式验收通过：MCP / Skills / Demo 收口已完成，repair replay 能力也已纳入统一 demo 路线。
 - 关于为什么继续当前项目、它与 agent / claw-like 产品的关系、以及未来如何扩展，可参见 [Product Positioning](Docs/01-roadmap/product-positioning.md) 文档。
 
 ## 快速开始
@@ -75,6 +75,8 @@ npm run dev
 - [Repair Plan](Docs/03-modules/repair-plan.md)
 - [Tools & MCP](Docs/03-modules/tools-mcp.md)
 - [Demo Runbook](Docs/03-modules/demo-runbook.md)
+- [Week12 Acceptance Runbook](Docs/03-modules/week12-acceptance-runbook.md)
+- [Week12 Acceptance Result](Docs/03-modules/week12-acceptance-result.md)
 
 ### 治理与归档
 
@@ -174,13 +176,13 @@ Week11 当前说明见：
 - [Week11 Acceptance Runbook](Docs/03-modules/week11-acceptance-runbook.md)
 - [Week11 Acceptance Result](Docs/03-modules/week11-acceptance-result.md)
 
-## Week12 当前实现口径
+## Week12 当前验收口径
 
-- Week12 已开始实现，当前第一阶段聚焦：
+- Week12 已正式验收通过，当前固定结论为：
   - 统一 external/MCP tool allowlist
   - `external_call_started / external_call_finished / external_call_blocked` 审计事件
   - planner 可见工具目录与执行阶段共用同一套 external tool policy
-- Week12 第二阶段已开始接入最小 skill runtime：
+- Week12 skill runtime 已完成并通过当前验收口径：
   - `skill_selected` 事件
   - 请求可显式携带 `SkillName`
   - demo skill `tech.mcp_demo`
@@ -190,7 +192,7 @@ Week11 当前说明见：
   - `GET /api/skills`
 - 当前 replay detail 已开始投影 skill 摘要：
   - `name / displayName / source / recommendedTools`
-- 当前已新增 Week12 演示收口文档：
+- 当前已固定 Week12 演示收口文档：
   - [Demo Runbook](Docs/03-modules/demo-runbook.md)
 - 当前已新增 Week12 样例采集脚本：
   - `Scripts/week12/capture-demo-samples.sh`
@@ -200,7 +202,7 @@ Week11 当前说明见：
   - `Scripts/week12/capture-blocked-tool-drill.ps1`
 - 当前固定方向：
   - 先把 MCP/外部工具纳入统一 Tool / allowlist / audit 体系
-  - 再继续推进 skill 示例与 demo runbook 收口
+  - 更强的真实 skill / MCP 示例放入 Week12 之后的增强范围
 
 ## 当前可直接调用的 Week8.x 入口
 
