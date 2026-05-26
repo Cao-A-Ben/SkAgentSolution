@@ -76,4 +76,4 @@ Verified on 2026-05-26:
 - Remaining priority shifts to stage-4 style work:
   - final demo narration or recording refresh if needed
   - documentation polish
-  - dependency cleanup
+  - routine dependency maintenance
